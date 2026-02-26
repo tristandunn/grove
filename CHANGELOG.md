@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Use slug instead of ID for tmux window names.
+
 ## v0.1.0 - February 25th, 2026
 
 - Add `grove new` to create a worktree workspace with a three-pane layout.

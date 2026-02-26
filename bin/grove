@@ -165,12 +165,12 @@ cmd_new() {
 
   local pane_left
   if tmux has-session -t "${session}" 2>/dev/null; then
-    pane_left=$(tmux new-window -a -t "${session}" -n "${id}" -c "${wt_path}" -P -F '#{pane_id}')
+    pane_left=$(tmux new-window -a -t "${session}" -n "${slug}" -c "${wt_path}" -P -F '#{pane_id}')
   else
     local width height
     width=$(tmux display-message -p '#{client_width}' 2>/dev/null || tput cols 2>/dev/null || echo 220)
     height=$(tmux display-message -p '#{client_height}' 2>/dev/null || tput lines 2>/dev/null || echo 50)
-    pane_left=$(tmux new-session -d -s "${session}" -n "${id}" -c "${wt_path}" -x "${width}" -y "${height}" -P -F '#{pane_id}')
+    pane_left=$(tmux new-session -d -s "${session}" -n "${slug}" -c "${wt_path}" -x "${width}" -y "${height}" -P -F '#{pane_id}')
   fi
 
   local -r target_window=$(tmux display-message -t "${pane_left}" -p '#{session_name}:#{window_index}')
