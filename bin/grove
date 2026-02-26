@@ -276,8 +276,9 @@ cmd_switch() {
 
 spawn_agent() {
   local cmd="$1"
-  local wt_path
-  wt_path=$(tmux display-message -p '#{pane_current_path}')
+  local pane_path wt_path
+  pane_path=$(tmux display-message -p '#{pane_current_path}')
+  wt_path=$(git -C "${pane_path}" rev-parse --show-toplevel 2>/dev/null || echo "${pane_path}")
 
   local pane0
   pane0=$(tmux list-panes -F '#{pane_left} #{pane_active} #{pane_id}' | awk '$1==0 && $2==1{print $3; exit}')
