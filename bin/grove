@@ -173,8 +173,17 @@ cmd_new() {
     pane_left=$(tmux new-window -a -t "${session}" -n "${slug}" -c "${wt_path}" -P -F '#{pane_id}')
   else
     local width height
-    width=$(tmux display-message -p '#{client_width}' 2>/dev/null || tput cols 2>/dev/null || echo 220)
-    height=$(tmux display-message -p '#{client_height}' 2>/dev/null || tput lines 2>/dev/null || echo 50)
+    width=$(tmux display-message -p '#{client_width}' 2>/dev/null || true)
+    height=$(tmux display-message -p '#{client_height}' 2>/dev/null || true)
+
+    if [[ ! "${width}" =~ ^[0-9]+$ ]]; then
+      width=$(tput cols 2>/dev/null || echo 200)
+    fi
+
+    if [[ ! "${height}" =~ ^[0-9]+$ ]]; then
+      height=$(tput lines 2>/dev/null || echo 48)
+    fi
+
     pane_left=$(tmux new-session -d -s "${session}" -n "${slug}" -c "${wt_path}" -x "${width}" -y "${height}" -P -F '#{pane_id}')
   fi
 
@@ -262,8 +271,17 @@ cmd_switch() {
     pane_left=$(tmux new-window -a -t "${session}" -n "${window_name}" -c "${wt_path}" -P -F '#{pane_id}')
   else
     local width height
-    width=$(tmux display-message -p '#{client_width}' 2>/dev/null || tput cols 2>/dev/null || echo 220)
-    height=$(tmux display-message -p '#{client_height}' 2>/dev/null || tput lines 2>/dev/null || echo 50)
+    width=$(tmux display-message -p '#{client_width}' 2>/dev/null || true)
+    height=$(tmux display-message -p '#{client_height}' 2>/dev/null || true)
+
+    if [[ ! "${width}" =~ ^[0-9]+$ ]]; then
+      width=$(tput cols 2>/dev/null || echo 200)
+    fi
+
+    if [[ ! "${height}" =~ ^[0-9]+$ ]]; then
+      height=$(tput lines 2>/dev/null || echo 48)
+    fi
+
     pane_left=$(tmux new-session -d -s "${session}" -n "${window_name}" -c "${wt_path}" -x "${width}" -y "${height}" -P -F '#{pane_id}')
   fi
 
