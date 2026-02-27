@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-VERSION="0.2.0"
+readonly VERSION="0.2.0"
 
 error() {
   if [[ -n "${TMUX:-}" ]]; then
@@ -71,17 +71,18 @@ diff_status() {
 
 cmd_layout() {
   if [[ $# -ne 2 ]]; then
-    echo "Usage: grove layout <pane-id> <worktree-path>" >&2; exit 1
+    echo "Usage: grove layout <pane-id> <worktree-path>" >&2
+    exit 1
   fi
 
-  local pane_left; pane_left="$1"
-  local wt_path; wt_path="$2"
+  local -r pane_left="$1"
+  local -r worktree_path="$2"
 
   local pane_diff
-  pane_diff=$(tmux split-window -t "${pane_left}" -h -l '45%' -c "${wt_path}" -P -F '#{pane_id}')
-  tmux split-window -t "${pane_diff}" -v -l '50%' -c "${wt_path}"
+  pane_diff=$(tmux split-window -t "${pane_left}" -h -l '45%' -c "${worktree_path}" -P -F '#{pane_id}')
+  tmux split-window -t "${pane_diff}" -v -l '50%' -c "${worktree_path}"
 
-  local agent; agent="${GROVE_AGENT:-claude}"
+  local -r agent="${GROVE_AGENT:-claude}"
 
   sleep 0.3
   tmux send-keys -t "${pane_diff}" 'grove diff-watch' Enter
@@ -95,7 +96,9 @@ cmd_diff_watch() {
     exit 0
   fi
 
-  git rev-parse --git-dir &>/dev/null || exit 0
+  if ! git rev-parse --git-dir &>/dev/null; then
+    exit 0
+  fi
 
   while true; do
     diff_status | fzf \
@@ -118,7 +121,8 @@ cmd_diff_watch() {
 
 cmd_show_diff() {
   if [[ $# -eq 0 ]]; then
-    echo "Usage: grove show-diff <file>" >&2; exit 1
+    echo "Usage: grove show-diff <file>" >&2
+    exit 1
   fi
 
   local -r file="${1}"
@@ -128,7 +132,7 @@ cmd_show_diff() {
     tracked=true
   fi
 
-  if ! [[ -e "${file}" ]] && [[ "${tracked}" == false ]]; then
+  if [[ ! -e "${file}" ]] && [[ "${tracked}" == false ]]; then
     exit 0
   fi
 
@@ -140,17 +144,23 @@ cmd_show_diff() {
 }
 
 cmd_new() {
-  if [[ $# -lt 1 ]]; then
-    echo "Usage: grove new <task-name>" >&2; exit 1
+  if [[ $# -eq 0 ]]; then
+    echo "Usage: grove new <task-name>" >&2
+    exit 1
   fi
 
   if ! git rev-parse --git-dir &>/dev/null; then
     error "Not inside a git repository."
   fi
 
-  local -r main_root=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')
-  local -r project_name=$(basename "${main_root}")
-  local -r worktrees_dir="${GROVE_WORKTREES:-$(dirname "${main_root}")/worktrees}"
+  local main_root
+  main_root=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')
+
+  local project_name
+  project_name=$(basename "${main_root}")
+
+  local worktrees_dir
+  worktrees_dir="${GROVE_WORKTREES:-$(dirname "${main_root}")/worktrees}"
 
   local slug
   slug=$(printf '%s' "${*}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g; s/--*/-/g; s/^-//; s/-$//')
@@ -159,20 +169,22 @@ cmd_new() {
     error "Task name produced an empty slug."
   fi
 
-  local -r hash=$(head -c 256 /dev/urandom | LC_ALL=C tr -dc 'a-z0-9' | head -c 3)
+  local hash
+  hash=$(head -c 256 /dev/urandom | LC_ALL=C tr -dc 'a-z0-9' | head -c 3)
+
   local -r id="${slug}-${hash}"
-  local -r wt_path="${worktrees_dir}/${id}"
+  local -r worktree_path="${worktrees_dir}/${id}"
   local -r branch="grove/${id}"
 
-  git worktree add "${wt_path}" -b "${branch}" >/dev/null
+  git worktree add "${worktree_path}" -b "${branch}" >/dev/null
 
   local -r session="${project_name//[.:]/_}"
 
   local pane_left
   if tmux has-session -t "${session}" 2>/dev/null; then
-    pane_left=$(tmux new-window -a -t "${session}" -n "${slug}" -c "${wt_path}" -P -F '#{pane_id}')
+    pane_left=$(tmux new-window -a -t "${session}" -n "${slug}" -c "${worktree_path}" -P -F '#{pane_id}')
   else
-    local width height
+    local height width
     width=$(tmux display-message -p '#{client_width}' 2>/dev/null || true)
     height=$(tmux display-message -p '#{client_height}' 2>/dev/null || true)
 
@@ -184,13 +196,14 @@ cmd_new() {
       height=$(tput lines 2>/dev/null || echo 48)
     fi
 
-    pane_left=$(tmux new-session -d -s "${session}" -n "${slug}" -c "${wt_path}" -x "${width}" -y "${height}" -P -F '#{pane_id}')
+    pane_left=$(tmux new-session -d -s "${session}" -n "${slug}" -c "${worktree_path}" -x "${width}" -y "${height}" -P -F '#{pane_id}')
   fi
 
-  local -r target_window=$(tmux display-message -t "${pane_left}" -p '#{session_name}:#{window_index}')
+  local target_window
+  target_window=$(tmux display-message -t "${pane_left}" -p '#{session_name}:#{window_index}')
   tmux select-window -t "${target_window}" 2>/dev/null || true
 
-  cmd_layout "${pane_left}" "${wt_path}"
+  cmd_layout "${pane_left}" "${worktree_path}"
 
   if [[ -z "${TMUX:-}" ]]; then
     exec tmux attach-session -t "${session}"
@@ -207,35 +220,42 @@ switch_entries() {
   local current_project=""
   local git_common_dir
   git_common_dir=$(git rev-parse --git-common-dir 2>/dev/null || true)
+
   if [[ -n "${git_common_dir}" ]]; then
-    [[ "${git_common_dir}" != /* ]] && git_common_dir="${PWD}/${git_common_dir}"
+    if [[ "${git_common_dir}" != /* ]]; then
+      git_common_dir="${PWD}/${git_common_dir}"
+    fi
+
     local project_dir
     project_dir=$(dirname "${git_common_dir}")
+
     if [[ "${project_dir}" == "${root_dir}/"* ]]; then
       current_project=$(basename "${project_dir}")
     fi
   fi
 
-  local local_project local_wt_path local_branch local_ref
+  local branch project ref worktree_path
   for repo in "${root_dir}"/*/; do
-    [[ -e "${repo}.git" ]] || continue
-    local_project=$(basename "${repo}")
+    if [[ ! -e "${repo}.git" ]]; then
+      continue
+    fi
 
-    local_wt_path=""
-    local_branch=""
+    project=$(basename "${repo}")
+    worktree_path=""
+    branch=""
 
     while IFS= read -r line; do
       if [[ "${line}" == worktree\ * ]]; then
-        local_wt_path="${line#worktree }"
+        worktree_path="${line#worktree }"
       elif [[ "${line}" == branch\ * ]]; then
-        local_ref="${line#branch }"
-        local_branch="${local_ref#refs/heads/}"
+        ref="${line#branch }"
+        branch="${ref#refs/heads/}"
       elif [[ -z "${line}" ]]; then
-        if [[ -n "${local_branch}" && -n "${local_wt_path}" && "${local_wt_path}" != "${repo%/}" ]]; then
-          printf '%s\t%s\t%s\n' "${local_project}" "${local_branch}" "${local_wt_path}"
+        if [[ -n "${branch}" && -n "${worktree_path}" && "${worktree_path}" != "${repo%/}" ]]; then
+          printf '%s\t%s\t%s\n' "${project}" "${branch}" "${worktree_path}"
         fi
-        local_wt_path=""
-        local_branch=""
+        worktree_path=""
+        branch=""
       fi
     done < <(git -C "${repo}" worktree list --porcelain)
   done | awk -v curr="${current_project}" -F'\t' '{print ($1==curr?"0":"1") "\t" $0}' \
@@ -257,18 +277,21 @@ switch_entries() {
 }
 
 cmd_delete_confirm() {
-  local -r wt_path="${1:-}"
+  local -r worktree_path="${1:-}"
 
-  if [[ -z "${wt_path}" ]]; then
+  if [[ -z "${worktree_path}" ]]; then
     return 0
   fi
 
-  local -r name=$(basename "${wt_path}" | sed 's/-[a-z0-9]\{3\}$//')
+  local name
+  name=$(basename "${worktree_path}" | sed 's/-[a-z0-9]\{3\}$//')
+
   printf 'Delete "%s"? [y/N] ' "${name}" >/dev/tty
-  local answer; read -r answer </dev/tty
+  local answer
+  read -r answer </dev/tty
 
   if [[ "${answer}" == [yY] ]]; then
-    cmd_rm --path "${wt_path}"
+    cmd_rm --path "${worktree_path}"
   fi
 }
 
@@ -303,23 +326,27 @@ cmd_switch() {
     --bind 'ctrl-d:execute(grove _delete-confirm {3})+reload(grove switch --list)' \
     < "${entries_file}") || exit 0
 
-  local -r wt_path=$(echo "${selected}" | cut -sf3)
-  local -r project=$(echo "${selected}" | cut -sf2)
+  local project worktree_path
+  project=$(echo "${selected}" | cut -sf2)
+  worktree_path=$(echo "${selected}" | cut -sf3)
 
-  if [[ -z "${wt_path}" ]]; then
+  if [[ -z "${worktree_path}" ]]; then
     exit 0
   fi
 
-  local -r window_name=$(basename "${wt_path}" | sed 's/-[a-z0-9]\{3\}$//')
+  local window_name
+  window_name=$(basename "${worktree_path}" | sed 's/-[a-z0-9]\{3\}$//')
+
   local -r session="${project//[.:]/_}"
 
   local existing_target
-  existing_target=$(tmux list-panes -a -F '#{session_name}:#{window_index} #{pane_current_path}' 2>/dev/null | while IFS=' ' read -r win_target pane_path; do
-    if [[ "${pane_path}" == "${wt_path}" || "${pane_path}" == "${wt_path}"/* ]]; then
-      echo "${win_target}"
-      break
-    fi
-  done) || true
+  existing_target=$(tmux list-panes -a -F '#{session_name}:#{window_index} #{pane_current_path}' 2>/dev/null \
+    | while IFS=' ' read -r win_id pane_path; do
+        if [[ "${pane_path}" == "${worktree_path}" || "${pane_path}" == "${worktree_path}"/* ]]; then
+          echo "${win_id}"
+          break
+        fi
+      done) || true
 
   if [[ -n "${existing_target}" ]]; then
     if [[ -n "${TMUX:-}" ]]; then
@@ -332,9 +359,9 @@ cmd_switch() {
 
   local pane_left
   if tmux has-session -t "${session}" 2>/dev/null; then
-    pane_left=$(tmux new-window -a -t "${session}" -n "${window_name}" -c "${wt_path}" -P -F '#{pane_id}')
+    pane_left=$(tmux new-window -a -t "${session}" -n "${window_name}" -c "${worktree_path}" -P -F '#{pane_id}')
   else
-    local width height
+    local height width
     width=$(tmux display-message -p '#{client_width}' 2>/dev/null || true)
     height=$(tmux display-message -p '#{client_height}' 2>/dev/null || true)
 
@@ -346,13 +373,14 @@ cmd_switch() {
       height=$(tput lines 2>/dev/null || echo 48)
     fi
 
-    pane_left=$(tmux new-session -d -s "${session}" -n "${window_name}" -c "${wt_path}" -x "${width}" -y "${height}" -P -F '#{pane_id}')
+    pane_left=$(tmux new-session -d -s "${session}" -n "${window_name}" -c "${worktree_path}" -x "${width}" -y "${height}" -P -F '#{pane_id}')
   fi
 
-  local -r target_window=$(tmux display-message -t "${pane_left}" -p '#{session_name}:#{window_index}')
+  local target_window
+  target_window=$(tmux display-message -t "${pane_left}" -p '#{session_name}:#{window_index}')
   tmux select-window -t "${target_window}" 2>/dev/null || true
 
-  cmd_layout "${pane_left}" "${wt_path}"
+  cmd_layout "${pane_left}" "${worktree_path}"
 
   if [[ -z "${TMUX:-}" ]]; then
     exec tmux attach-session -t "${session}"
@@ -360,20 +388,24 @@ cmd_switch() {
 }
 
 spawn_agent() {
-  local cmd="$1"
-  local pane_path wt_path
-  pane_path=$(tmux display-message -p '#{pane_current_path}')
-  wt_path=$(git -C "${pane_path}" rev-parse --show-toplevel 2>/dev/null || echo "${pane_path}")
+  local -r agent_cmd="$1"
 
-  local pane0
-  pane0=$(tmux list-panes -F '#{pane_left} #{pane_active} #{pane_id}' | awk '$1==0 && $2==1{print $3; exit}')
-  [[ -z "${pane0}" ]] && pane0=$(tmux list-panes -F '#{pane_left} #{pane_id}' | awk '$1==0{print $2; exit}')
+  local pane_path worktree_path
+  pane_path=$(tmux display-message -p '#{pane_current_path}')
+  worktree_path=$(git -C "${pane_path}" rev-parse --show-toplevel 2>/dev/null || echo "${pane_path}")
+
+  local leftmost_pane
+  leftmost_pane=$(tmux list-panes -F '#{pane_left} #{pane_active} #{pane_id}' | awk '$1==0 && $2==1{print $3; exit}')
+
+  if [[ -z "${leftmost_pane}" ]]; then
+    leftmost_pane=$(tmux list-panes -F '#{pane_left} #{pane_id}' | awk '$1==0{print $2; exit}')
+  fi
 
   local new_pane
-  new_pane=$(tmux split-window -v -t "${pane0}" -c "${wt_path}" -P -F '#{pane_id}')
+  new_pane=$(tmux split-window -v -t "${leftmost_pane}" -c "${worktree_path}" -P -F '#{pane_id}')
 
   sleep 0.3
-  tmux send-keys -t "${new_pane}" "${cmd}" Enter
+  tmux send-keys -t "${new_pane}" "${agent_cmd}" Enter
 }
 
 cmd_add_agent() {
@@ -394,13 +426,13 @@ EOF
 }
 
 cmd_rm() {
-  local current_wt
+  local current_worktree
 
   if [[ "${1:-}" == "--path" ]]; then
     if [[ -z "${2:-}" ]]; then
       error "grove rm --path requires a path argument."
     fi
-    current_wt="$2"
+    current_worktree="$2"
   else
     # run-shell inherits its cwd from the session default (the first worktree),
     # not the active window. Ask the client for the active pane's real path.
@@ -416,29 +448,32 @@ cmd_rm() {
       error "Not inside a git repository."
     fi
 
-    current_wt=$(git rev-parse --show-toplevel)
+    current_worktree=$(git rev-parse --show-toplevel)
   fi
 
   local main_root
-  main_root=$(git -C "${current_wt}" worktree list --porcelain | head -1 | sed 's/^worktree //')
+  main_root=$(git -C "${current_worktree}" worktree list --porcelain | head -1 | sed 's/^worktree //')
 
-  if [[ "${current_wt}" == "${main_root}" ]]; then
+  if [[ "${current_worktree}" == "${main_root}" ]]; then
     error "Cannot remove the main worktree. Run this from inside a task worktree."
   fi
-  local -r branch=$(git -C "${current_wt}" rev-parse --abbrev-ref HEAD)
+
+  local branch
+  branch=$(git -C "${current_worktree}" rev-parse --abbrev-ref HEAD)
 
   local win_target=""
   if [[ -n "${TMUX:-}" ]]; then
     win_target=$(tmux list-panes -a -F '#{session_name}:#{window_index} #{pane_current_path}' 2>/dev/null \
-      | while IFS=' ' read -r wt pp; do
-          if [[ "${pp}" == "${current_wt}" || "${pp}" == "${current_wt}"/* ]]; then
-            echo "${wt}"; break
+      | while IFS=' ' read -r win_id pane_path; do
+          if [[ "${pane_path}" == "${current_worktree}" || "${pane_path}" == "${current_worktree}"/* ]]; then
+            echo "${win_id}"
+            break
           fi
         done) || true
   fi
 
   cd "${main_root}" || true
-  git worktree remove "${current_wt}" --force >/dev/null 2>&1 || true
+  git worktree remove "${current_worktree}" --force >/dev/null 2>&1 || true
   git branch -D "${branch}" >/dev/null 2>&1 || true
 
   if [[ -n "${win_target}" ]]; then
@@ -474,8 +509,8 @@ case "${1:-}" in
   show-diff)        shift; cmd_show_diff "$@" ;;
   layout)           shift; cmd_layout "$@" ;;
   _delete-confirm)  shift; cmd_delete_confirm "$@" ;;
-  -v|--version) echo "grove version ${VERSION}" ;;
-  -h|--help|help) usage ;;
+  -v|--version)     echo "grove version ${VERSION}" ;;
+  -h|--help|help)   usage ;;
   *)
     if [[ $# -gt 1 || "${1:-}" == *" "* ]]; then
       cmd_new "$@"
