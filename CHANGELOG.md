@@ -4,6 +4,7 @@
 
 - Use slug instead of ID for tmux window names.
 - Ensure spawning an agent starts in the worktree root.
+- Improve session name sanitization to also replace colons as separators.
 
 ## v0.1.0 - February 25th, 2026
 

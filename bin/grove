@@ -161,7 +161,7 @@ cmd_new() {
 
   git worktree add "${wt_path}" -b "${branch}" >/dev/null
 
-  local -r session="${project_name//./_}"
+  local -r session="${project_name//[.:]/_}"
 
   local pane_left
   if tmux has-session -t "${session}" 2>/dev/null; then
@@ -235,7 +235,7 @@ cmd_switch() {
   local -r wt_path=$(echo "${selected}" | cut -f3)
   local -r project=$(echo "${selected}" | cut -f1)
   local -r window_name=$(basename "${wt_path}" | sed 's/-[a-z0-9]\{3\}$//')
-  local -r session="${project//./_}"
+  local -r session="${project//[.:]/_}"
 
   local existing_target
   existing_target=$(tmux list-panes -a -F '#{session_name}:#{window_index} #{pane_current_path}' 2>/dev/null | while IFS=' ' read -r win_target pane_path; do
