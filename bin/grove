@@ -139,8 +139,10 @@ cmd_show_diff() {
     exit 0
   fi
 
-  if [[ "${tracked}" == true ]]; then
+  if git rev-parse --verify HEAD:"${file}" &>/dev/null; then
     git diff --color=always HEAD -- "${file}" | less -R +g
+  elif [[ "${tracked}" == true ]]; then
+    git diff --color=always --cached -- "${file}" | less -R +g
   else
     git diff --color=always --no-index /dev/null "${file}" | less -R +g || true
   fi
