@@ -3,6 +3,16 @@ set -euo pipefail
 
 VERSION="0.1.0"
 
+error() {
+  if [[ -n "${TMUX:-}" ]]; then
+    tmux display-message -d 2000 "grove: $*"
+  else
+    echo "Error: $*" >&2
+  fi
+
+  exit 1
+}
+
 diff_status() {
   {
     printf '\034unstaged\n'
@@ -61,8 +71,7 @@ diff_status() {
 
 cmd_layout() {
   if [[ $# -ne 2 ]]; then
-    echo "Usage: grove layout <pane-id> <worktree-path>" >&2
-    exit 1
+    echo "Usage: grove layout <pane-id> <worktree-path>" >&2; exit 1
   fi
 
   local pane_left; pane_left="$1"
@@ -109,8 +118,7 @@ cmd_diff_watch() {
 
 cmd_show_diff() {
   if [[ $# -eq 0 ]]; then
-    echo "Usage: grove show-diff <file>" >&2
-    exit 1
+    echo "Usage: grove show-diff <file>" >&2; exit 1
   fi
 
   local -r file="${1}"
@@ -133,13 +141,11 @@ cmd_show_diff() {
 
 cmd_new() {
   if [[ $# -lt 1 ]]; then
-    echo "Usage: grove new <task-name>" >&2
-    exit 1
+    echo "Usage: grove new <task-name>" >&2; exit 1
   fi
 
   if ! git rev-parse --git-dir &>/dev/null; then
-    echo "Error: Not inside a git repository." >&2
-    exit 1
+    error "Not inside a git repository."
   fi
 
   local -r main_root=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')
@@ -150,8 +156,7 @@ cmd_new() {
   slug=$(printf '%s' "${*}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g; s/--*/-/g; s/^-//; s/-$//')
 
   if [[ -z "${slug}" ]]; then
-    echo "Error: Task name produced an empty slug." >&2
-    exit 1
+    error "Task name produced an empty slug."
   fi
 
   local -r hash=$(head -c 256 /dev/urandom | LC_ALL=C tr -dc 'a-z0-9' | head -c 3)
@@ -187,8 +192,7 @@ cmd_switch() {
   local -r root_dir="${GROVE_ROOT:-${HOME}/Sites}"
 
   if [[ ! -d "${root_dir}" ]]; then
-    echo "Error: ${root_dir} does not exist." >&2
-    exit 1
+    error "${root_dir} does not exist."
   fi
 
   local entries_file
@@ -220,8 +224,7 @@ cmd_switch() {
   done | sort > "${entries_file}"
 
   if [[ ! -s "${entries_file}" ]]; then
-    echo "Error: No worktrees found in ${root_dir}." >&2
-    exit 1
+    error "No worktrees found in ${root_dir}."
   fi
 
   local selected
@@ -320,16 +323,14 @@ cmd_rm() {
   fi
 
   if ! git rev-parse --git-dir &>/dev/null; then
-    echo "Error: Not inside a git repository." >&2
-    exit 1
+    error "Not inside a git repository."
   fi
 
   local -r current_wt=$(git rev-parse --show-toplevel)
   local -r main_root=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')
 
   if [[ "${current_wt}" == "${main_root}" ]]; then
-    echo "Error: Cannot remove the main worktree. Run this from inside a task worktree." >&2
-    exit 1
+    error "Cannot remove the main worktree. Run this from inside a task worktree."
   fi
 
   local -r branch=$(git rev-parse --abbrev-ref HEAD)
