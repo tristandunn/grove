@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Group worktrees by project with headers in the switcher.
+- Display the current project first in the switcher.
 - Hide project name in worktree switcher to improve search.
 - Improve handling of session dimensions.
 

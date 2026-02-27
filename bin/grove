@@ -208,6 +208,18 @@ cmd_switch() {
   entries_file=$(mktemp)
   trap 'rm -f "${entries_file:-}"' EXIT INT TERM
 
+  local current_project=""
+  local git_common_dir
+  git_common_dir=$(git rev-parse --git-common-dir 2>/dev/null || true)
+  if [[ -n "${git_common_dir}" ]]; then
+    [[ "${git_common_dir}" != /* ]] && git_common_dir="${PWD}/${git_common_dir}"
+    local project_dir
+    project_dir=$(dirname "${git_common_dir}")
+    if [[ "${project_dir}" == "${root_dir}/"* ]]; then
+      current_project=$(basename "${project_dir}")
+    fi
+  fi
+
   local local_project local_wt_path local_branch local_ref
   for repo in "${root_dir}"/*/; do
     [[ -e "${repo}.git" ]] || continue
@@ -230,7 +242,10 @@ cmd_switch() {
         local_branch=""
       fi
     done < <(git -C "${repo}" worktree list --porcelain)
-  done | sort | awk -F'\t' '{
+  done | awk -v curr="${current_project}" -F'\t' '{print ($1==curr?"0":"1") "\t" $0}' \
+       | sort \
+       | cut -f2- \
+       | awk -F'\t' '{
     proj[NR] = $1; path[NR] = $3
     name = $3; sub(/.*\//, "", name); full[NR] = name
     slug = name; sub(/-[a-z0-9][a-z0-9][a-z0-9]$/, "", slug); short[NR] = slug
