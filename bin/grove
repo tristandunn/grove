@@ -94,15 +94,15 @@ cmd_layout() {
   local -r pane_left="$1"
   local -r worktree_path="$2"
 
-  local pane_diff
-  pane_diff=$(tmux split-window -t "${pane_left}" -h -l '45%' -c "${worktree_path}" -P -F '#{pane_id}')
-  tmux split-window -t "${pane_diff}" -v -l '50%' -c "${worktree_path}"
+  local pane_watcher
+  pane_watcher=$(tmux split-window -t "${pane_left}" -h -l '45%' -c "${worktree_path}" -P -F '#{pane_id}')
+  tmux split-window -t "${pane_watcher}" -v -l '50%' -c "${worktree_path}"
 
   local -r agent="${GROVE_AGENT:-claude}"
 
   # Sleep so new panes have time to initialize before sending keystrokes.
   sleep 0.3
-  tmux send-keys -t "${pane_diff}" 'grove diff-watch' Enter
+  tmux send-keys -t "${pane_watcher}" 'grove file-watch' Enter
   tmux send-keys -t "${pane_left}" "${agent}" Enter
   tmux select-pane -t "${pane_left}"
 }
@@ -110,7 +110,7 @@ cmd_layout() {
 # Run an interactive file watcher that auto-refreshes every 2 seconds. Files
 # can be staged, unstaged, or opened in a diff popup. The outer loop restarts
 # fzf when it exits.
-cmd_diff_watch() {
+cmd_file_watch() {
   if [[ "${1:-}" == "--status" ]]; then
     diff_status
     exit 0
@@ -129,11 +129,11 @@ cmd_diff_watch() {
       --delimiter=$'\t' \
       --with-nth=1 \
       --footer=$'Enter: View  Ctrl-a: Stage  Ctrl-u: Unstage' \
-      --bind "change:reload:grove diff-watch --status" \
-      --bind "load:reload:sleep 2 && grove diff-watch --status" \
+      --bind "change:reload:grove file-watch --status" \
+      --bind "load:reload:sleep 2 && grove file-watch --status" \
       --bind 'enter:transform:[[ -n {2} ]] && echo "execute(tmux display-popup -w 80% -h 80% -E '"'"'grove show-diff {2}'"'"')"' \
-      --bind 'ctrl-a:transform:[[ -n {2} ]] && echo "execute-silent(git add -- {2})+reload(grove diff-watch --status)"' \
-      --bind 'ctrl-u:transform:[[ -n {2} ]] && echo "execute-silent(git reset HEAD -- {2})+reload(grove diff-watch --status)"' \
+      --bind 'ctrl-a:transform:[[ -n {2} ]] && echo "execute-silent(git add -- {2})+reload(grove file-watch --status)"' \
+      --bind 'ctrl-u:transform:[[ -n {2} ]] && echo "execute-silent(git reset HEAD -- {2})+reload(grove file-watch --status)"' \
       || true  # fzf returns non-zero when the list is empty.
 
     sleep 0.5
@@ -570,7 +570,7 @@ case "${1:-}" in
   review)           cmd_review ;;
   switch)           shift; cmd_switch "$@" ;;
   rm)               shift; cmd_rm "$@" ;;
-  diff-watch)       shift; cmd_diff_watch "$@" ;;
+  file-watch)       shift; cmd_file_watch "$@" ;;
   show-diff)        shift; cmd_show_diff "$@" ;;
   layout)           shift; cmd_layout "$@" ;;
   _delete-confirm)  shift; cmd_delete_confirm "$@" ;;
