@@ -197,16 +197,12 @@ cmd_new() {
   fi
 }
 
-cmd_switch() {
+switch_entries() {
   local -r root_dir="${GROVE_ROOT:-${HOME}/Sites}"
 
   if [[ ! -d "${root_dir}" ]]; then
     error "${root_dir} does not exist."
   fi
-
-  local entries_file
-  entries_file=$(mktemp)
-  trap 'rm -f "${entries_file:-}"' EXIT INT TERM
 
   local current_project=""
   local git_common_dir
@@ -257,10 +253,39 @@ cmd_switch() {
       display = (count[proj[i], short[i]] > 1) ? full[i] : short[i]
       printf "  %-512s%s\t%s\t%s\n", display, proj[i], proj[i], path[i]
     }
-  }' > "${entries_file}"
+  }'
+}
+
+cmd_delete_confirm() {
+  local -r wt_path="${1:-}"
+
+  if [[ -z "${wt_path}" ]]; then
+    return 0
+  fi
+
+  local -r name=$(basename "${wt_path}" | sed 's/-[a-z0-9]\{3\}$//')
+  printf 'Delete "%s"? [y/N] ' "${name}" >/dev/tty
+  local answer; read -r answer </dev/tty
+
+  if [[ "${answer}" == [yY] ]]; then
+    cmd_rm --path "${wt_path}"
+  fi
+}
+
+cmd_switch() {
+  if [[ "${1:-}" == "--list" ]]; then
+    switch_entries
+    return
+  fi
+
+  local entries_file
+  entries_file=$(mktemp)
+  trap 'rm -f "${entries_file:-}"' EXIT INT TERM
+
+  switch_entries > "${entries_file}"
 
   if [[ ! -s "${entries_file}" ]]; then
-    error "No worktrees found in ${root_dir}."
+    error "No worktrees found in ${GROVE_ROOT:-${HOME}/Sites}."
   fi
 
   local selected
@@ -273,7 +298,10 @@ cmd_switch() {
     --with-nth=1 \
     --no-hscroll \
     --ellipsis '' \
-    --bind 'enter:transform:[[ -n {2} ]] && echo accept' < "${entries_file}") || exit 0
+    --footer=$'  ctrl-d: delete' \
+    --bind 'enter:transform:[[ -n {2} ]] && echo accept' \
+    --bind 'ctrl-d:execute(grove _delete-confirm {3})+reload(grove switch --list)' \
+    < "${entries_file}") || exit 0
 
   local -r wt_path=$(echo "${selected}" | cut -sf3)
   local -r project=$(echo "${selected}" | cut -sf2)
@@ -366,35 +394,55 @@ EOF
 }
 
 cmd_rm() {
-  # run-shell inherits its cwd from the session default (the first worktree),
-  # not the active window. Ask the client for the active pane's real path.
-  if [[ -n "${TMUX:-}" ]]; then
-    local pane_path
-    pane_path=$(tmux display-message -p '#{pane_current_path}' 2>/dev/null) || true
-    if [[ -n "${pane_path}" ]]; then
-      cd "${pane_path}" || true
+  local current_wt
+
+  if [[ "${1:-}" == "--path" ]]; then
+    if [[ -z "${2:-}" ]]; then
+      error "grove rm --path requires a path argument."
     fi
+    current_wt="$2"
+  else
+    # run-shell inherits its cwd from the session default (the first worktree),
+    # not the active window. Ask the client for the active pane's real path.
+    if [[ -n "${TMUX:-}" ]]; then
+      local pane_path
+      pane_path=$(tmux display-message -p '#{pane_current_path}' 2>/dev/null) || true
+      if [[ -n "${pane_path}" ]]; then
+        cd "${pane_path}" || true
+      fi
+    fi
+
+    if ! git rev-parse --git-dir &>/dev/null; then
+      error "Not inside a git repository."
+    fi
+
+    current_wt=$(git rev-parse --show-toplevel)
   fi
 
-  if ! git rev-parse --git-dir &>/dev/null; then
-    error "Not inside a git repository."
-  fi
-
-  local -r current_wt=$(git rev-parse --show-toplevel)
-  local -r main_root=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')
+  local main_root
+  main_root=$(git -C "${current_wt}" worktree list --porcelain | head -1 | sed 's/^worktree //')
 
   if [[ "${current_wt}" == "${main_root}" ]]; then
     error "Cannot remove the main worktree. Run this from inside a task worktree."
   fi
+  local -r branch=$(git -C "${current_wt}" rev-parse --abbrev-ref HEAD)
 
-  local -r branch=$(git rev-parse --abbrev-ref HEAD)
+  local win_target=""
+  if [[ -n "${TMUX:-}" ]]; then
+    win_target=$(tmux list-panes -a -F '#{session_name}:#{window_index} #{pane_current_path}' 2>/dev/null \
+      | while IFS=' ' read -r wt pp; do
+          if [[ "${pp}" == "${current_wt}" || "${pp}" == "${current_wt}"/* ]]; then
+            echo "${wt}"; break
+          fi
+        done) || true
+  fi
 
   cd "${main_root}" || true
   git worktree remove "${current_wt}" --force >/dev/null 2>&1 || true
   git branch -D "${branch}" >/dev/null 2>&1 || true
 
-  if [[ -n "${TMUX:-}" ]]; then
-    tmux kill-window 2>/dev/null || true
+  if [[ -n "${win_target}" ]]; then
+    tmux kill-window -t "${win_target}" 2>/dev/null || true
   fi
 }
 
@@ -417,14 +465,15 @@ EOF
 }
 
 case "${1:-}" in
-  new)        shift; cmd_new "$@" ;;
-  add-agent)  cmd_add_agent ;;
-  review)     cmd_review ;;
-  switch)     cmd_switch ;;
-  rm)         cmd_rm ;;
-  diff-watch) shift; cmd_diff_watch "$@" ;;
-  show-diff)  shift; cmd_show_diff "$@" ;;
-  layout)     shift; cmd_layout "$@" ;;
+  new)              shift; cmd_new "$@" ;;
+  add-agent)        cmd_add_agent ;;
+  review)           cmd_review ;;
+  switch)           shift; cmd_switch "$@" ;;
+  rm)               shift; cmd_rm "$@" ;;
+  diff-watch)       shift; cmd_diff_watch "$@" ;;
+  show-diff)        shift; cmd_show_diff "$@" ;;
+  layout)           shift; cmd_layout "$@" ;;
+  _delete-confirm)  shift; cmd_delete_confirm "$@" ;;
   -v|--version) echo "grove version ${VERSION}" ;;
   -h|--help|help) usage ;;
   *)
