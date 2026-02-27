@@ -61,7 +61,7 @@ diff_status() {
 
 cmd_layout() {
   if [[ $# -ne 2 ]]; then
-    echo "usage: grove layout <pane-id> <worktree-path>" >&2
+    echo "Usage: grove layout <pane-id> <worktree-path>" >&2
     exit 1
   fi
 
@@ -109,7 +109,7 @@ cmd_diff_watch() {
 
 cmd_show_diff() {
   if [[ $# -eq 0 ]]; then
-    echo "usage: grove show-diff <file>" >&2
+    echo "Usage: grove show-diff <file>" >&2
     exit 1
   fi
 
@@ -133,12 +133,12 @@ cmd_show_diff() {
 
 cmd_new() {
   if [[ $# -lt 1 ]]; then
-    echo "usage: grove new <task-name>" >&2
+    echo "Usage: grove new <task-name>" >&2
     exit 1
   fi
 
   if ! git rev-parse --git-dir &>/dev/null; then
-    echo "error: not inside a git repository" >&2
+    echo "Error: Not inside a git repository." >&2
     exit 1
   fi
 
@@ -150,7 +150,7 @@ cmd_new() {
   slug=$(printf '%s' "${*}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g; s/--*/-/g; s/^-//; s/-$//')
 
   if [[ -z "${slug}" ]]; then
-    echo "error: task name produced an empty slug" >&2
+    echo "Error: Task name produced an empty slug." >&2
     exit 1
   fi
 
@@ -187,7 +187,7 @@ cmd_switch() {
   local -r root_dir="${GROVE_ROOT:-${HOME}/Sites}"
 
   if [[ ! -d "${root_dir}" ]]; then
-    echo "error: ${root_dir} does not exist" >&2
+    echo "Error: ${root_dir} does not exist." >&2
     exit 1
   fi
 
@@ -220,7 +220,7 @@ cmd_switch() {
   done | sort > "${entries_file}"
 
   if [[ ! -s "${entries_file}" ]]; then
-    echo "error: no worktrees found in ${root_dir}" >&2
+    echo "Error: No worktrees found in ${root_dir}." >&2
     exit 1
   fi
 
@@ -320,7 +320,7 @@ cmd_rm() {
   fi
 
   if ! git rev-parse --git-dir &>/dev/null; then
-    echo "error: not inside a git repository" >&2
+    echo "Error: Not inside a git repository." >&2
     exit 1
   fi
 
@@ -328,7 +328,7 @@ cmd_rm() {
   local -r main_root=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')
 
   if [[ "${current_wt}" == "${main_root}" ]]; then
-    echo "error: cannot remove the main worktree — run this from inside a task worktree" >&2
+    echo "Error: Cannot remove the main worktree. Run this from inside a task worktree." >&2
     exit 1
   fi
 
