@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Add worktree deletion with confirmation to the switcher.
+- Add keyboard shortcut footer to file watcher and switcher.
 - Group worktrees by project with headers in the switcher.
 - Display the current project first in the switcher.
 - Hide project name in worktree switcher to improve search.

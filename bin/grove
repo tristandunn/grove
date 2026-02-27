@@ -108,6 +108,7 @@ cmd_diff_watch() {
       --info=hidden \
       --delimiter=$'\t' \
       --with-nth=1 \
+      --footer=$'Enter: View  Ctrl-a: Stage  Ctrl-u: Unstage' \
       --bind "change:reload:grove diff-watch --status" \
       --bind "load:reload:sleep 2 && grove diff-watch --status" \
       --bind "enter:execute(tmux display-popup -w 80% -h 80% -E 'grove show-diff {2}')" \
@@ -321,7 +322,7 @@ cmd_switch() {
     --with-nth=1 \
     --no-hscroll \
     --ellipsis '' \
-    --footer=$'  ctrl-d: delete' \
+    --footer=$'Enter: Open  Ctrl-d: Delete' \
     --bind 'enter:transform:[[ -n {2} ]] && echo accept' \
     --bind 'ctrl-d:execute(grove _delete-confirm {3})+reload(grove switch --list)' \
     < "${entries_file}") || exit 0
