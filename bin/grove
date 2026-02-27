@@ -45,6 +45,7 @@ diff_status() {
       for (i = 1; i <= u; i++) { fn = substr(unstaged[i],4); if (length(fn) > max_len) max_len = length(fn) }
       for (i = 1; i <= s; i++) { fn = substr(staged[i],4);   if (length(fn) > max_len) max_len = length(fn) }
 
+      if (u > 0) printf "\033[1;2mUnstaged\033[0m\t\n"
       for (i = 1; i <= u; i++) {
         st = substr(unstaged[i],1,2); fn = substr(unstaged[i],4)
         stat = ""
@@ -52,16 +53,17 @@ diff_status() {
         if (fn in ud && ud[fn] != "-" && ud[fn]+0 > 0) stat = stat (stat ? " " : "") "\033[31m-" ud[fn] "\033[0m"
         if (fn in sa && sa[fn] != "-" && sa[fn]+0 > 0) stat = stat (stat ? " " : "") "\033[32m+" sa[fn] "\033[0m"
         if (fn in sd && sd[fn] != "-" && sd[fn]+0 > 0) stat = stat (stat ? " " : "") "\033[31m-" sd[fn] "\033[0m"
-        line = st "  " pad(fn, max_len)
+        line = "  " st "  " pad(fn, max_len)
         if (stat != "") line = line "  " stat
         print line "\t" fn
       }
+      if (s > 0) printf "\033[1;2mStaged\033[0m\t\n"
       for (i = 1; i <= s; i++) {
         st = substr(staged[i],1,2); fn = substr(staged[i],4)
         stat = ""
         if (fn in sa && sa[fn] != "-" && sa[fn]+0 > 0) stat =             "\033[32m+" sa[fn] "\033[0m"
         if (fn in sd && sd[fn] != "-" && sd[fn]+0 > 0) stat = stat (stat ? " " : "") "\033[31m-" sd[fn] "\033[0m"
-        line = "\033[90m" st "\033[0m  " pad(fn, max_len)
+        line = "  \033[90m" st "\033[0m  " pad(fn, max_len)
         if (stat != "") line = line "  " stat
         print line "\t" fn
       }
@@ -111,9 +113,9 @@ cmd_diff_watch() {
       --footer=$'Enter: View  Ctrl-a: Stage  Ctrl-u: Unstage' \
       --bind "change:reload:grove diff-watch --status" \
       --bind "load:reload:sleep 2 && grove diff-watch --status" \
-      --bind "enter:execute(tmux display-popup -w 80% -h 80% -E 'grove show-diff {2}')" \
-      --bind "ctrl-a:execute-silent(git add -- {2})+reload(grove diff-watch --status)" \
-      --bind "ctrl-u:execute-silent(git reset HEAD -- {2})+reload(grove diff-watch --status)" \
+      --bind 'enter:transform:[[ -n {2} ]] && echo "execute(tmux display-popup -w 80% -h 80% -E '"'"'grove show-diff {2}'"'"')"' \
+      --bind 'ctrl-a:transform:[[ -n {2} ]] && echo "execute-silent(git add -- {2})+reload(grove diff-watch --status)"' \
+      --bind 'ctrl-u:transform:[[ -n {2} ]] && echo "execute-silent(git reset HEAD -- {2})+reload(grove diff-watch --status)"' \
       || true
 
     sleep 0.5
