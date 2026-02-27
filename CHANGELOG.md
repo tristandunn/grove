@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Group worktrees by project with headers in the switcher.
 - Improve handling of session dimensions.
 
 ## v0.2.0 - February 26th, 2026

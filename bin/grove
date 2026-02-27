@@ -230,7 +230,19 @@ cmd_switch() {
         local_branch=""
       fi
     done < <(git -C "${repo}" worktree list --porcelain)
-  done | sort > "${entries_file}"
+  done | sort | awk -F'\t' '{
+    proj[NR] = $1; path[NR] = $3
+    name = $3; sub(/.*\//, "", name); full[NR] = name
+    slug = name; sub(/-[a-z0-9][a-z0-9][a-z0-9]$/, "", slug); short[NR] = slug
+    count[$1, slug]++
+  }
+  END {
+    for (i = 1; i <= NR; i++) {
+      if (proj[i] != prev) { printf "\033[1;2m%s\033[0m\n", proj[i]; prev = proj[i] }
+      display = (count[proj[i], short[i]] > 1) ? full[i] : short[i]
+      printf "  %s\t%s\t%s\n", display, proj[i], path[i]
+    }
+  }' > "${entries_file}"
 
   if [[ ! -s "${entries_file}" ]]; then
     error "No worktrees found in ${root_dir}."
@@ -241,11 +253,18 @@ cmd_switch() {
     --prompt='worktree> ' \
     --height=50% \
     --reverse \
+    --ansi \
     --delimiter=$'\t' \
-    --with-nth=1,2 < "${entries_file}") || exit 0
+    --with-nth=1 \
+    --bind 'enter:transform:[[ -n {2} ]] && echo accept' < "${entries_file}") || exit 0
 
-  local -r wt_path=$(echo "${selected}" | cut -f3)
-  local -r project=$(echo "${selected}" | cut -f1)
+  local -r wt_path=$(echo "${selected}" | cut -sf3)
+  local -r project=$(echo "${selected}" | cut -sf2)
+
+  if [[ -z "${wt_path}" ]]; then
+    exit 0
+  fi
+
   local -r window_name=$(basename "${wt_path}" | sed 's/-[a-z0-9]\{3\}$//')
   local -r session="${project//[.:]/_}"
 
