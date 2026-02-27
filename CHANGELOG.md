@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.2.0 - February 26th, 2026
 
 - Use slug instead of ID for tmux window names.
 - Ensure spawning an agent starts in the worktree root.
