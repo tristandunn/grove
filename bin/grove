@@ -240,7 +240,7 @@ cmd_switch() {
     for (i = 1; i <= NR; i++) {
       if (proj[i] != prev) { printf "\033[1;2m%s\033[0m\n", proj[i]; prev = proj[i] }
       display = (count[proj[i], short[i]] > 1) ? full[i] : short[i]
-      printf "  %s\t%s\t%s\n", display, proj[i], path[i]
+      printf "  %-512s%s\t%s\t%s\n", display, proj[i], proj[i], path[i]
     }
   }' > "${entries_file}"
 
@@ -256,6 +256,8 @@ cmd_switch() {
     --ansi \
     --delimiter=$'\t' \
     --with-nth=1 \
+    --no-hscroll \
+    --ellipsis '' \
     --bind 'enter:transform:[[ -n {2} ]] && echo accept' < "${entries_file}") || exit 0
 
   local -r wt_path=$(echo "${selected}" | cut -sf3)

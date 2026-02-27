@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Group worktrees by project with headers in the switcher.
+- Hide project name in worktree switcher to improve search.
 - Improve handling of session dimensions.
 
 ## v0.2.0 - February 26th, 2026
