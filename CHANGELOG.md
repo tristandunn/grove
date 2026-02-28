@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add nested sessions for the agent and terminal panes.
 - Export `GROVE_WORKSPACE_NAME` into the shell pane.
 
 ## v0.6.0 - June 26th, 2026
