@@ -5,6 +5,7 @@
 - Add worktree deletion with confirmation to the switcher.
 - Add keyboard shortcut footer to file watcher and switcher.
 - Fix preview for newly staged files.
+- Fix preview for newly added files that have been modified or deleted.
 - Group changes by status in the file watcher.
 - Group worktrees by project with headers in the switcher.
 - Display the current project first in the switcher.

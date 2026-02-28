@@ -140,8 +140,9 @@ cmd_file_watch() {
   done
 }
 
-# Show the difference for a single file in a pager. Tracked files are against
-# HEAD and untracked files are against /dev/null to show their full contents.
+# Show the difference for a single file in a pager. Files in HEAD are diffed
+# against HEAD, new files are diffed against /dev/null, and staged files that
+# have been deleted from the working tree are diffed against the index.
 cmd_show_diff() {
   if [[ $# -eq 0 ]]; then
     echo "Usage: grove show-diff <file>" >&2
@@ -161,10 +162,10 @@ cmd_show_diff() {
 
   if git rev-parse --verify HEAD:"${file}" &>/dev/null; then
     git diff --color=always HEAD -- "${file}" | less -R +g
-  elif [[ "${tracked}" == true ]]; then
-    git diff --color=always --cached -- "${file}" | less -R +g
-  else
+  elif [[ -e "${file}" ]]; then
     git diff --color=always --no-index /dev/null "${file}" | less -R +g || true
+  else
+    git diff --color=always -- "${file}" | less -R +g
   fi
 }
 
