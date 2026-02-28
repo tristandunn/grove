@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add nested sessions for the agent and terminal panes.
 - Hide stale worktree entries in the switcher.
 
 ## v0.3.0 - February 28th, 2026

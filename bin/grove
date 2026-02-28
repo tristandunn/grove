@@ -15,6 +15,28 @@ error() {
   exit 1
 }
 
+# Create the config file for nested tmux sessions if it does not already exist.
+ensure_inner_tmux_conf() {
+  local -r config_dir="${XDG_CONFIG_HOME:-${HOME}/.config}/grove"
+  local -r conf="${config_dir}/tmux.conf"
+
+  if [[ ! -f "${conf}" ]]; then
+    mkdir -p "${config_dir}"
+    cat > "${conf}" <<'TMUXCONF'
+set -g prefix C-a
+bind C-a send-prefix
+set -g status-style "bg=default,fg=white"
+set -g status-left ""
+set -g status-right ""
+set -g window-status-format " #I:#W "
+set -g window-status-current-format "#[reverse] #I:#W #[noreverse]"
+set -g status-position bottom
+TMUXCONF
+  fi
+
+  echo "${conf}"
+}
+
 # Build a list of changed files with colored add/remove stats for the file
 # watcher. Combines unstaged changes, staged changes, and untracked files into
 # one output. Each line ends with a tab-separated filename that fzf uses as a
@@ -94,16 +116,31 @@ cmd_layout() {
   local -r pane_left="$1"
   local -r worktree_path="$2"
 
+  local inner_conf
+  inner_conf=$(ensure_inner_tmux_conf)
+
+  local slug
+  slug=$(basename "${worktree_path}")
+  local -r agent_session="grove_${slug}_agents"
+  local -r terminal_session="grove_${slug}_terminal"
+
   local pane_watcher
   pane_watcher=$(tmux split-window -t "${pane_left}" -h -l '45%' -c "${worktree_path}" -P -F '#{pane_id}')
-  tmux split-window -t "${pane_watcher}" -v -l '50%' -c "${worktree_path}"
+
+  local pane_terminal
+  pane_terminal=$(tmux split-window -t "${pane_watcher}" -v -l '50%' -c "${worktree_path}" -P -F '#{pane_id}')
 
   local -r agent="${GROVE_AGENT:-claude}"
+
+  tmux bind-key a send-keys C-a
+  tmux -L "${agent_session}" kill-server 2>/dev/null || true
+  tmux -L "${terminal_session}" kill-server 2>/dev/null || true
 
   # Sleep so new panes have time to initialize before sending keystrokes.
   sleep 0.3
   tmux send-keys -t "${pane_watcher}" 'grove file-watch' Enter
-  tmux send-keys -t "${pane_left}" "${agent}" Enter
+  tmux send-keys -t "${pane_left}" "tmux -L ${agent_session@Q} -f ${inner_conf@Q} new-session -s main -n agent -c ${worktree_path@Q} ${agent@Q}" Enter
+  tmux send-keys -t "${pane_terminal}" "tmux -L ${terminal_session@Q} -f ${inner_conf@Q} new-session -s main -n shell -c ${worktree_path@Q}" Enter
   tmux select-pane -t "${pane_left}"
 }
 
@@ -439,15 +476,11 @@ cmd_switch() {
   fi
 }
 
-# Split a new vertical pane in the leftmost column and start a coding agent in
-# it. The pane opens at the worktree root regardless of where the user's shell
-# has navigated.
+# Create a new tab in the leftmost pane's nested tmux session and run a coding
+# agent in it.
 spawn_agent() {
   local -r agent_cmd="$1"
-
-  local pane_path worktree_path
-  pane_path=$(tmux display-message -p '#{pane_current_path}')
-  worktree_path=$(git -C "${pane_path}" rev-parse --show-toplevel 2>/dev/null || echo "${pane_path}")
+  local -r window_name="${2:-agent}"
 
   # Prefer the active pane if it is in the leftmost column. Fall back to any
   # pane in the leftmost column so the split always lands in the right place
@@ -459,16 +492,15 @@ spawn_agent() {
     leftmost_pane=$(tmux list-panes -F '#{pane_left} #{pane_id}' | awk '$1==0{print $2; exit}')
   fi
 
-  local new_pane
-  new_pane=$(tmux split-window -v -t "${leftmost_pane}" -c "${worktree_path}" -P -F '#{pane_id}')
-
+  tmux send-keys -t "${leftmost_pane}" C-a c
   sleep 0.3
-  tmux send-keys -t "${new_pane}" "${agent_cmd}" Enter
+  tmux send-keys -t "${leftmost_pane}" "tmux rename-window ${window_name@Q}" Enter
+  tmux send-keys -t "${leftmost_pane}" " ${agent_cmd}" Enter
 }
 
-# Add another agent pane to the current window.
+# Add another agent tab to the current window.
 cmd_add_agent() {
-  spawn_agent "${GROVE_AGENT:-claude}"
+  spawn_agent "${GROVE_AGENT:-claude}" agent
 }
 
 # Spawn a coding agent preloaded with a code review prompt that compares the
@@ -483,7 +515,7 @@ cmd_review() {
 EOF
 )
 
-  spawn_agent "${GROVE_AGENT:-claude} $(printf '%q' "${prompt}")"
+  spawn_agent "${GROVE_AGENT:-claude} $(printf '%q' "${prompt}")" review
 }
 
 # Remove a worktree, its branch, and the tmux window that contains it. Can
@@ -553,10 +585,13 @@ Usage: grove <command> [args]
 
 Commands
   new <task-name>    Create a new worktree and tmux window.
-  add-agent          Add another agent pane to the current worktree.
-  review             Open a review agent pane for the current changes.
+  add-agent          Add another agent tab to the current worktree.
+  review             Open a review agent tab for the current changes.
   switch             Fuzzy-pick and switch to a worktree.
   rm                 Remove the current worktree.
+
+The left (agent) and bottom-right (terminal) panes run nested tmux sessions.
+Use <prefix> a n / <prefix> a p to switch between tabs within a pane.
 
 Environment Variables
   GROVE_AGENT        Command to run in the left pane. (default: claude)

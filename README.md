@@ -4,7 +4,8 @@ An agent worktree manager built on tmux.
 
 One tmux session per project, one window per worktree, with a fixed 3-pane
 layout that includes the agent on the left, a file watcher on the top-right, and
-a terminal on the bottom-right.
+a terminal on the bottom-right. The left and bottom-right panes run nested tmux
+sessions, so additional agents and terminals open as tabs instead of splits.
 
 ## Dependencies
 
@@ -34,11 +35,20 @@ bind -T grove n display-popup -w 50% -h 3 -E -d "#{pane_current_path}" 'printf "
 bind -T grove r run-shell "grove review"
 ```
 
-- `prefix + g a` — Add another agent pane to the current worktree.
+- `prefix + g a` — Add another agent tab to the current worktree.
 - `prefix + g d` — Delete and close the current worktree.
 - `prefix + g g` — Open the worktree switcher.
 - `prefix + g n` — Prompt for a task name and create a new worktree.
-- `prefix + g r` — Open a review agent pane for the current changes.
+- `prefix + g r` — Open a review agent tab for the current changes.
+
+You can also add this binding to forward your prefix to the nested tmux sessions:
+
+```sh
+bind a send-keys C-a
+```
+
+This lets you use `prefix + a` followed by any inner tmux key, such as `n` for
+next tab or `p` for previous tab.
 
 ## Usage
 
