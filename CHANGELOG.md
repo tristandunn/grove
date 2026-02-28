@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.3.0 - February 28th, 2026
 
 - Add worktree deletion with confirmation to the switcher.
 - Add keyboard shortcut footer to file watcher and switcher.
