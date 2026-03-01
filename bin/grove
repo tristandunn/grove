@@ -294,7 +294,7 @@ switch_entries() {
         ref="${line#branch }"
         branch="${ref#refs/heads/}"
       elif [[ -z "${line}" ]]; then
-        if [[ -n "${branch}" && -n "${worktree_path}" && "${worktree_path}" != "${repo%/}" ]]; then
+        if [[ -n "${branch}" && -n "${worktree_path}" && "${worktree_path}" != "${repo%/}" && -d "${worktree_path}" ]]; then
           printf '%s\t%s\t%s\n' "${project}" "${branch}" "${worktree_path}"
         fi
         worktree_path=""
