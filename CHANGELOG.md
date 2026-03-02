@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add notify command to flag completed agents.
 - Hide stale worktree entries in the switcher.
 
 ## v0.3.0 - February 28th, 2026

@@ -277,7 +277,7 @@ switch_entries() {
     fi
   fi
 
-  local branch project ref worktree_path
+  local branch grove_status project ref worktree_path wt_git_dir
   for repo in "${root_dir}"/*/; do
     if [[ ! -e "${repo}.git" ]]; then
       continue
@@ -295,7 +295,12 @@ switch_entries() {
         branch="${ref#refs/heads/}"
       elif [[ -z "${line}" ]]; then
         if [[ -n "${branch}" && -n "${worktree_path}" && "${worktree_path}" != "${repo%/}" && -d "${worktree_path}" ]]; then
-          printf '%s\t%s\t%s\n' "${project}" "${branch}" "${worktree_path}"
+          wt_git_dir=$(git -C "${worktree_path}" rev-parse --git-dir 2>/dev/null) || true
+          grove_status=""
+          if [[ -n "${wt_git_dir}" && -f "${wt_git_dir}/.grove-status" ]]; then
+            grove_status=$(cat "${wt_git_dir}/.grove-status")
+          fi
+          printf '%s\t%s\t%s\t%s\n' "${project}" "${branch}" "${worktree_path}" "${grove_status}"
         fi
         worktree_path=""
         branch=""
@@ -304,11 +309,15 @@ switch_entries() {
   # Format entries for fzf. When multiple worktrees share the same slug, the
   # full name is shown to disambiguate. Hidden tab-separated columns carry the
   # project name and path for actions.
-  done | awk -v curr="${current_project}" -F'\t' '{print ($1==curr?"0":"1") "\t" $0}' \
+  done | awk -v curr="${current_project}" -F'\t' '{
+           notify = ($4=="done") ? "0" : "1"
+           is_curr = ($1==curr) ? "0" : "1"
+           print notify is_curr "\t" $0
+         }' \
        | sort \
        | cut -f2- \
        | awk -F'\t' '{
-    proj[NR] = $1; path[NR] = $3
+    proj[NR] = $1; path[NR] = $3; status[NR] = $4
     name = $3; sub(/.*\//, "", name); full[NR] = name
     slug = name; sub(/-[a-z0-9][a-z0-9][a-z0-9]$/, "", slug); short[NR] = slug
     count[$1, slug]++
@@ -317,7 +326,8 @@ switch_entries() {
     for (i = 1; i <= NR; i++) {
       if (proj[i] != prev) { printf "\033[1;2m%s\033[0m\n", proj[i]; prev = proj[i] }
       display = (count[proj[i], short[i]] > 1) ? full[i] : short[i]
-      printf "  %-512s%s\t%s\t%s\n", display, proj[i], proj[i], path[i]
+      prefix = (status[i] == "done") ? "* " : "  "
+      printf "%s%-512s%s\t%s\t%s\n", prefix, display, proj[i], proj[i], path[i]
     }
   }'
 }
@@ -340,6 +350,26 @@ cmd_delete_confirm() {
   if [[ "${answer}" == [yY] ]]; then
     cmd_rm --path "${worktree_path}"
   fi
+}
+
+# Write a status file so grove switch can highlight this worktree as ready
+# for review. Silently skips if not inside a grove/* worktree.
+cmd_notify() {
+  if ! git rev-parse --git-dir &>/dev/null; then
+    return 0
+  fi
+
+  local git_dir
+  git_dir=$(git rev-parse --git-dir)
+
+  local branch
+  branch=$(git rev-parse --abbrev-ref HEAD)
+
+  if [[ "${branch}" != grove/* ]]; then
+    return 0
+  fi
+
+  echo "done" > "${git_dir}/.grove-status"
 }
 
 # Open the worktree switcher. If a tmux window already exists for the selected
@@ -382,6 +412,12 @@ cmd_switch() {
 
   if [[ -z "${worktree_path}" ]]; then
     exit 0
+  fi
+
+  local notify_git_dir
+  notify_git_dir=$(git -C "${worktree_path}" rev-parse --git-dir 2>/dev/null) || true
+  if [[ -n "${notify_git_dir}" ]]; then
+    rm -f "${notify_git_dir}/.grove-status"
   fi
 
   local window_name
@@ -568,6 +604,7 @@ EOF
 case "${1:-}" in
   new)              shift; cmd_new "$@" ;;
   add-agent)        cmd_add_agent ;;
+  notify)           cmd_notify ;;
   review)           cmd_review ;;
   switch)           shift; cmd_switch "$@" ;;
   rm)               shift; cmd_rm "$@" ;;

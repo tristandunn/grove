@@ -40,6 +40,27 @@ bind -T grove r run-shell "grove review"
 - `prefix + g n` — Prompt for a task name and create a new worktree.
 - `prefix + g r` — Open a review agent pane for the current changes.
 
+### Claude Code
+
+To get a visual indicator in the worktree switcher when an agent finishes, add a `Stop` hook to `~/.claude/settings.json`:
+
+```json
+"hooks": {
+  "Stop": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "grove notify"
+        }
+      ]
+    }
+  ]
+}
+```
+
+When a task completes, the worktree is marked with `*` in `grove switch` and sorted to the top of the list. Switching to it clears the indicator.
+
 ## Usage
 
 ### New Worktree
