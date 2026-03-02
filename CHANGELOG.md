@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add support for project setup and run scripts.
 - Fix unstaged preview for newly added files.
 
 ## v0.5.0 - April 22nd, 2026

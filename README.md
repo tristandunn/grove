@@ -32,6 +32,7 @@ bind -T grove b display-popup -w 50% -h 3 -E -d "#{pane_current_path}" 'printf "
 bind -T grove d run-shell "grove rm"
 bind -T grove g display-popup -w 60% -h 50% -E "grove switch"
 bind -T grove n display-popup -w 50% -h 3 -E -d "#{pane_current_path}" 'printf "Task Name: " && read -r name && grove new "$name"'
+bind -T grove r run-shell "grove run"
 ```
 
 - `prefix + g a` — Add another agent pane to the current worktree.
@@ -39,6 +40,7 @@ bind -T grove n display-popup -w 50% -h 3 -E -d "#{pane_current_path}" 'printf "
 - `prefix + g d` — Delete and close the current worktree.
 - `prefix + g g` — Open the worktree switcher.
 - `prefix + g n` — Prompt for a task name and create a new worktree.
+- `prefix + g r` — Execute the project run script in the shell pane.
 
 ## Usage
 
@@ -102,6 +104,20 @@ removed line counts. It supports the following keybindings:
 - `Enter` — View the full diff for the selected file in a popup.
 - `Ctrl-a` — Stage the selected file.
 - `Ctrl-u` — Unstage the selected file.
+
+### Project Scripts
+
+Grove supports two optional scripts in the `.grove/` directory at the root of
+your repository:
+
+- **`.grove/setup.sh`** — Runs automatically in the shell pane when a new
+  worktree is created with `grove new`. Use this for installing dependencies,
+  starting dev servers, or any other setup tasks.
+- **`.grove/run.sh`** — Runs on demand via `grove run`. Use this for recurring
+  tasks like restarting a dev server or running a build.
+
+Both scripts must be executable. If `setup.sh` exists but is not executable,
+grove shows a transient warning instead of running it.
 
 ## Environment Variables
 

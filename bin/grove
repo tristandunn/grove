@@ -84,7 +84,7 @@ diff_status() {
 
 # Set up the three-pane layout for a worktree window. The left pane runs the
 # coding agent, the top-right pane runs the file watcher, and the bottom-right
-# pane is a free shell.
+# pane is a free shell. Prints the shell pane ID to stdout.
 cmd_layout() {
   if [[ $# -lt 2 || $# -gt 3 ]]; then
     echo "Usage: grove layout <pane-id> <worktree-path> [--continue]" >&2
@@ -97,7 +97,8 @@ cmd_layout() {
 
   local pane_watcher
   pane_watcher=$(tmux split-window -t "${pane_left}" -h -l '45%' -c "${worktree_path}" -P -F '#{pane_id}')
-  tmux split-window -t "${pane_watcher}" -v -l '50%' -c "${worktree_path}"
+  local pane_shell
+  pane_shell=$(tmux split-window -t "${pane_watcher}" -v -l '50%' -c "${worktree_path}" -P -F '#{pane_id}')
 
   local agent="${GROVE_AGENT:-claude}"
   if [[ "${continue_flag}" == "--continue" ]]; then
@@ -109,6 +110,8 @@ cmd_layout() {
   tmux send-keys -t "${pane_watcher}" 'grove file-watch' Enter
   tmux send-keys -t "${pane_left}" "${agent}" Enter
   tmux select-pane -t "${pane_left}"
+
+  echo "${pane_shell}"
 }
 
 # Run an interactive file watcher that auto-refreshes every 2 seconds. Files
@@ -182,6 +185,7 @@ open_worktree() {
   local -r window_name="$2"
   local -r working_dir="$3"
   local -r continue_flag="${4:-}"
+  local -r run_setup="${5:-}"
 
   local pane_left
   if tmux has-session -t "${session}" 2>/dev/null; then
@@ -206,7 +210,17 @@ open_worktree() {
   target_window=$(tmux display-message -t "${pane_left}" -p '#{session_name}:#{window_index}')
   tmux select-window -t "${target_window}" 2>/dev/null || true
 
-  cmd_layout "${pane_left}" "${working_dir}" "${continue_flag}"
+  local pane_shell
+  pane_shell=$(cmd_layout "${pane_left}" "${working_dir}" "${continue_flag}")
+
+  if [[ "${run_setup}" == "true" ]]; then
+    local -r setup_script="${working_dir}/.grove/setup.sh"
+    if [[ -x "${setup_script}" ]]; then
+      tmux send-keys -t "${pane_shell}" "${setup_script}" Enter
+    elif [[ -f "${setup_script}" ]]; then
+      tmux display-message -d 3000 "grove: .grove/setup.sh is not executable."
+    fi
+  fi
 
   if [[ -z "${TMUX:-}" ]]; then
     exec tmux attach-session -t "${session}"
@@ -257,7 +271,7 @@ cmd_new() {
   # The session names cannot contain dots or colons.
   local -r session="${project_name//[.:]/_}"
 
-  open_worktree "${session}" "$(basename "${worktree_path}")" "${worktree_path}"
+  open_worktree "${session}" "$(basename "${worktree_path}")" "${worktree_path}" "" true
 }
 
 # Build the worktree list for the switcher. When invoked inside a grove-managed
@@ -563,6 +577,47 @@ cmd_rename_prompt() {
   fi
 }
 
+# Find the shell pane in the current window. The shell pane is the bottom-right
+# pane: not in the leftmost column, highest pane_top value.
+find_shell_pane() {
+  tmux list-panes -F '#{pane_left} #{pane_top} #{pane_id}' \
+    | awk '$1 > 0 { if ($2 > max) { max = $2; id = $3 } } END { print id }'
+}
+
+# Execute the project run script in the shell pane.
+cmd_run() {
+  if [[ -z "${TMUX:-}" ]]; then
+    error "grove run must be called from inside tmux."
+  fi
+
+  local pane_path worktree_path
+  pane_path=$(tmux display-message -p '#{pane_current_path}')
+  worktree_path=$(git -C "${pane_path}" rev-parse --show-toplevel 2>/dev/null || true)
+
+  if [[ -z "${worktree_path}" ]]; then
+    error "Not inside a git repository."
+  fi
+
+  local -r run_script="${worktree_path}/.grove/run.sh"
+
+  if [[ ! -f "${run_script}" ]]; then
+    error ".grove/run.sh not found."
+  fi
+
+  if [[ ! -x "${run_script}" ]]; then
+    error ".grove/run.sh is not executable."
+  fi
+
+  local shell_pane
+  shell_pane=$(find_shell_pane)
+
+  if [[ -z "${shell_pane}" ]]; then
+    error "No shell pane found."
+  fi
+
+  tmux send-keys -t "${shell_pane}" "${run_script}" Enter
+}
+
 # Remove a worktree, its branch, and the tmux window that contains it. Can
 # operate on the current directory or on an explicit path.
 cmd_rm() {
@@ -639,6 +694,7 @@ Commands
   new <task-name>    Create a new worktree and tmux window.
   rename <new-name>  Rename the current worktree and its branch.
   add-agent          Add another agent pane to the current worktree.
+  run                Execute .grove/run.sh in the shell pane.
   switch             Fuzzy-pick and switch to a worktree.
   rm                 Remove the current worktree.
 
@@ -654,6 +710,7 @@ case "${1:-}" in
   new)              shift; cmd_new "$@" ;;
   rename)           shift; cmd_rename "$@" ;;
   add-agent)        cmd_add_agent ;;
+  run)              cmd_run ;;
   switch)           shift; cmd_switch "$@" ;;
   rm)               shift; cmd_rm "$@" ;;
   file-watch)       shift; cmd_file_watch "$@" ;;
