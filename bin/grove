@@ -479,7 +479,7 @@ cmd_rm() {
     if [[ ! -f "${current_worktree}/.git" ]]; then
       # The directory may already be gone; accept the path if git still tracks
       # it as a worktree so that stale entries can be cleaned up.
-      if ! git worktree list --porcelain 2>/dev/null | grep -qx "worktree ${current_worktree}"; then
+      if ! git worktree list --porcelain 2>/dev/null | grep -Fqx "worktree ${current_worktree}"; then
         error "Not a valid worktree: ${current_worktree}"
       fi
     fi
