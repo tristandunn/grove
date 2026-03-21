@@ -232,7 +232,7 @@ cmd_new() {
   # Slugify the task name by lowercasing it, replacing spaces with hyphens, and
   # stripping special characters.
   local slug
-  slug=$(printf '%s' "${*}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g; s/--*/-/g; s/^-//; s/-$//')
+  slug=$(printf '%s' "$*" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g; s/--*/-/g; s/^-//; s/-$//')
 
   if [[ -z "${slug}" ]]; then
     error "Task name produced an empty slug."
