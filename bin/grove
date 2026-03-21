@@ -152,7 +152,7 @@ cmd_show_diff() {
   local -r file="${1}"
 
   local tracked=false
-  if git ls-files --error-unmatch "${file}" &>/dev/null; then
+  if git ls-files --error-unmatch -- "${file}" &>/dev/null; then
     tracked=true
   fi
 
@@ -163,7 +163,7 @@ cmd_show_diff() {
   if git rev-parse --verify HEAD:"${file}" &>/dev/null; then
     git diff --color=always HEAD -- "${file}" | less -R +g
   elif [[ -e "${file}" ]]; then
-    git diff --color=always --no-index /dev/null "${file}" | less -R +g || true
+    git diff --color=always --no-index -- /dev/null "${file}" | less -R +g || true
   else
     git diff --color=always -- "${file}" | less -R +g
   fi
