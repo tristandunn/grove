@@ -476,6 +476,13 @@ cmd_rm() {
       error "grove rm --path requires a path argument."
     fi
     current_worktree="$2"
+    if [[ ! -f "${current_worktree}/.git" ]]; then
+      # The directory may already be gone; accept the path if git still tracks
+      # it as a worktree so that stale entries can be cleaned up.
+      if ! git worktree list --porcelain 2>/dev/null | grep -qx "worktree ${current_worktree}"; then
+        error "Not a valid worktree: ${current_worktree}"
+      fi
+    fi
   else
     # run-shell inherits its cwd from the session default (the first worktree),
     # not the active window. Ask the client for the active pane's real path.

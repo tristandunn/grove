@@ -4,6 +4,7 @@
 
 - Hide stale worktree entries in the switcher.
 - Fix the add and remove statistics for renamed files.
+- Fix deletion of invalid worktree paths in the switcher.
 - Improve how filenames are provided to git commands.
 
 ## v0.3.0 - February 28th, 2026
