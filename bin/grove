@@ -24,11 +24,11 @@ diff_status() {
   # separator characters (\034) so they never conflict with filenames.
   {
     printf '\034unstaged\n'
-    git diff --numstat 2>/dev/null || true
+    git diff --numstat --no-renames 2>/dev/null || true
     printf '\034staged\n'
-    git diff --numstat --cached 2>/dev/null || true
+    git diff --numstat --no-renames --cached 2>/dev/null || true
     printf '\034status\n'
-    git status --short
+    git status --short --no-renames
   } | awk '
   # The awk script merges the three sections into display lines. Unstaged files
   # show normally while staged files are dimmed. Each file gets colored add and
