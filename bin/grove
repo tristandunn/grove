@@ -246,7 +246,10 @@ cmd_new() {
   local -r worktree_path="${worktrees_dir}/${id}"
   local -r branch="grove/${id}"
 
-  git worktree add "${worktree_path}" -b "${branch}" >/dev/null
+  local default_branch
+  default_branch=$(git -C "${main_root}" symbolic-ref --short HEAD)
+
+  git worktree add "${worktree_path}" -b "${branch}" "${default_branch}" >/dev/null
 
   # The session names cannot contain dots or colons.
   local -r session="${project_name//[.:]/_}"

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Start new worktrees from the default branch.
 - Hide stale worktree entries in the switcher.
 - Fix the add and remove statistics for renamed files.
 - Fix deletion of invalid worktree paths in the switcher.
