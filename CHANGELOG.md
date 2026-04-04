@@ -6,6 +6,7 @@
 - Hide stale worktree entries in the switcher.
 - Fix the add and remove statistics for renamed files.
 - Fix deletion of invalid worktree paths in the switcher.
+- Fix file watcher preview opening in the wrong worktree.
 - Fix file watcher actions to properly escape filenames with spaces.
 - Improve how filenames are provided to git commands.
 - Improve worktree path matching to use fixed strings.

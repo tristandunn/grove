@@ -131,7 +131,7 @@ cmd_file_watch() {
       --footer=$'Enter: View  Ctrl-a: Stage  Ctrl-u: Unstage' \
       --bind "change:reload:grove file-watch --status" \
       --bind "load:reload:sleep 2 && grove file-watch --status" \
-      --bind 'enter:execute(tmux display-popup -w 80% -h 80% -E "grove show-diff {2}")' \
+      --bind 'enter:transform:[[ -n {2} ]] && echo "execute(tmux display-popup -d \"\$PWD\" -w 80% -h 80% -E \"grove show-diff {2}\")"' \
       --bind 'ctrl-a:execute-silent(git add -- {2})+reload(grove file-watch --status)' \
       --bind 'ctrl-u:execute-silent(git reset HEAD -- {2})+reload(grove file-watch --status)' \
       || true  # fzf returns non-zero when the list is empty.
