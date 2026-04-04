@@ -381,8 +381,9 @@ cmd_switch() {
     --with-nth=1 \
     --no-hscroll \
     --ellipsis '' \
-    --footer=$'Enter: Open  Ctrl-d: Delete' \
+    --footer=$'Enter: Open  Ctrl-b: Rename  Ctrl-d: Delete' \
     --bind 'enter:transform:[[ -n {2} ]] && echo accept' \
+    --bind 'ctrl-b:execute(grove _rename-prompt {3})+reload(grove switch --list)' \
     --bind 'ctrl-d:execute(grove _delete-confirm {3})+reload(grove switch --list)' \
     < "${entries_file}") || exit 0
 
@@ -469,6 +470,103 @@ EOF
   spawn_agent "${GROVE_AGENT:-claude} $(printf '%q' "${prompt}")"
 }
 
+# Rename a worktree's branch, directory, and tmux window. Can operate on the
+# current directory or on an explicit path passed with --path.
+cmd_rename() {
+  local current_worktree new_name
+
+  if [[ "${1:-}" == "--path" ]]; then
+    if [[ $# -lt 3 ]]; then
+      echo "Usage: grove rename --path <worktree-path> <new-name>" >&2
+      exit 1
+    fi
+    current_worktree="$2"
+    shift 2
+    new_name="$*"
+  else
+    if [[ $# -eq 0 ]]; then
+      echo "Usage: grove rename <new-name>" >&2
+      exit 1
+    fi
+
+    if [[ -n "${TMUX:-}" ]]; then
+      local pane_path
+      pane_path=$(tmux display-message -p '#{pane_current_path}' 2>/dev/null) || true
+      if [[ -n "${pane_path}" ]]; then
+        cd "${pane_path}" || true
+      fi
+    fi
+
+    if ! git rev-parse --git-dir &>/dev/null; then
+      error "Not inside a git repository."
+    fi
+
+    current_worktree=$(git rev-parse --show-toplevel)
+    new_name="$*"
+  fi
+
+  local main_root
+  main_root=$(git -C "${current_worktree}" worktree list --porcelain | head -1 | sed 's/^worktree //')
+
+  if [[ "${current_worktree}" == "${main_root}" ]]; then
+    error "Cannot rename the main worktree."
+  fi
+
+  local slug
+  slug=$(printf '%s' "${new_name}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed 's/[^a-z0-9-]//g; s/--*/-/g; s/^-//; s/-$//')
+
+  if [[ -z "${slug}" ]]; then
+    error "New name produced an empty slug."
+  fi
+
+  local -r new_id="${slug}"
+  local -r new_branch="${new_id}"
+  local -r worktrees_dir=$(dirname "${current_worktree}")
+  local -r new_worktree_path="${worktrees_dir}/${new_id}"
+
+  local old_branch
+  old_branch=$(git -C "${current_worktree}" rev-parse --abbrev-ref HEAD)
+
+  git -C "${current_worktree}" branch -m "${old_branch}" "${new_branch}"
+  git worktree move "${current_worktree}" "${new_worktree_path}"
+
+  # Rename the tmux window if one is open for this worktree.
+  if [[ -n "${TMUX:-}" ]]; then
+    local win_target
+    win_target=$(tmux list-panes -a -F '#{session_name}:#{window_index} #{pane_current_path}' 2>/dev/null \
+      | while IFS=' ' read -r win_id pane_path; do
+          if [[ "${pane_path}" == "${new_worktree_path}" || "${pane_path}" == "${new_worktree_path}"/* ]]; then
+            echo "${win_id}"
+            break
+          fi
+        done) || true
+
+    if [[ -n "${win_target}" ]]; then
+      tmux rename-window -t "${win_target}" "${slug}"
+    fi
+  fi
+}
+
+# Prompt for a new name before renaming a worktree. Used by the switcher.
+cmd_rename_prompt() {
+  local -r worktree_path="${1:-}"
+
+  if [[ -z "${worktree_path}" ]]; then
+    return 0
+  fi
+
+  local old_name
+  old_name=$(basename "${worktree_path}" | sed 's/-[a-z0-9]\{3\}$//')
+
+  printf 'Rename "%s" to: ' "${old_name}" >/dev/tty
+  local new_name
+  read -r new_name </dev/tty
+
+  if [[ -n "${new_name}" ]]; then
+    cmd_rename --path "${worktree_path}" "${new_name}"
+  fi
+}
+
 # Remove a worktree, its branch, and the tmux window that contains it. Can
 # operate on the current directory or on an explicit path.
 cmd_rm() {
@@ -543,6 +641,7 @@ Usage: grove <command> [args]
 
 Commands
   new <task-name>    Create a new worktree and tmux window.
+  rename <new-name>  Rename the current worktree and its branch.
   add-agent          Add another agent pane to the current worktree.
   review             Open a review agent pane for the current changes.
   switch             Fuzzy-pick and switch to a worktree.
@@ -557,6 +656,7 @@ EOF
 
 case "${1:-}" in
   new)              shift; cmd_new "$@" ;;
+  rename)           shift; cmd_rename "$@" ;;
   add-agent)        cmd_add_agent ;;
   review)           cmd_review ;;
   switch)           shift; cmd_switch "$@" ;;
@@ -564,6 +664,7 @@ case "${1:-}" in
   file-watch)       shift; cmd_file_watch "$@" ;;
   show-diff)        shift; cmd_show_diff "$@" ;;
   layout)           shift; cmd_layout "$@" ;;
+  _rename-prompt)   shift; cmd_rename_prompt "$@" ;;
   _delete-confirm)  shift; cmd_delete_confirm "$@" ;;
   -v|--version)     echo "grove version ${VERSION}" ;;
   -h|--help|help)   usage ;;

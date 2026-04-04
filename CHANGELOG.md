@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add `grove rename` to rename worktrees.
 - Start new worktrees from the default branch.
 - Hide stale worktree entries in the switcher.
 - Fix the add and remove statistics for renamed files.

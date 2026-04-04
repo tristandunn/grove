@@ -28,13 +28,15 @@ Add optional shortcuts to your `~/.tmux.conf` configuration:
 ```sh
 bind g switch-client -T grove
 bind -T grove a run-shell "grove add-agent"
+bind -T grove b display-popup -w 50% -h 3 -E -d "#{pane_current_path}" 'printf "New Name: " && read -r name && grove rename "$name"'
 bind -T grove d run-shell "grove rm"
 bind -T grove g display-popup -w 60% -h 50% -E "grove switch"
-bind -T grove n display-popup -w 50% -h 3 -E -d "#{pane_current_path}" 'printf "task name: " && read -r name && grove new "$name"'
+bind -T grove n display-popup -w 50% -h 3 -E -d "#{pane_current_path}" 'printf "Task Name: " && read -r name && grove new "$name"'
 bind -T grove r run-shell "grove review"
 ```
 
 - `prefix + g a` — Add another agent pane to the current worktree.
+- `prefix + g b` — Rename the current worktree and its branch.
 - `prefix + g d` — Delete and close the current worktree.
 - `prefix + g g` — Open the worktree switcher.
 - `prefix + g n` — Prompt for a task name and create a new worktree.
@@ -61,6 +63,17 @@ The left pane runs `claude` by default, which you can override with
 ```sh
 GROVE_AGENT="codex" grove new refactor auth
 ```
+
+### Rename Worktree
+
+Rename a worktree from inside any worktree directory:
+
+```sh
+grove rename new task name
+```
+
+This renames the branch, moves the worktree directory, and updates the tmux
+window name.
 
 ### Remove Worktree
 
