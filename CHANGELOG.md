@@ -9,6 +9,7 @@
 - Fix deletion of invalid worktree paths in the switcher.
 - Fix file watcher preview opening in the wrong worktree.
 - Fix file watcher actions to properly escape filenames with spaces.
+- Fix file watcher to show individual files in untracked directories.
 - Improve how filenames are provided to git commands.
 - Improve worktree path matching to use fixed strings.
 
