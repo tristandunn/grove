@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Remove the `grove review` command.
+
 ## v0.4.0 - April 6th, 2026
 
 - Add `grove rename` to rename worktrees.

@@ -455,21 +455,6 @@ cmd_add_agent() {
   spawn_agent "${GROVE_AGENT:-claude}"
 }
 
-# Spawn a coding agent preloaded with a code review prompt that compares the
-# current branch against main.
-cmd_review() {
-  local prompt
-  prompt=$(sed 's/^    //' <<'EOF'
-    Review the current changes on this branch against the main branch.
-
-    Look for bugs, incorrect logic, unhandled edge cases, and security
-    issues. Keep the review concise and only raise issues that matter.
-EOF
-)
-
-  spawn_agent "${GROVE_AGENT:-claude} $(printf '%q' "${prompt}")"
-}
-
 # Rename a worktree's branch, directory, and tmux window. Can operate on the
 # current directory or on an explicit path passed with --path.
 cmd_rename() {
@@ -643,7 +628,6 @@ Commands
   new <task-name>    Create a new worktree and tmux window.
   rename <new-name>  Rename the current worktree and its branch.
   add-agent          Add another agent pane to the current worktree.
-  review             Open a review agent pane for the current changes.
   switch             Fuzzy-pick and switch to a worktree.
   rm                 Remove the current worktree.
 
@@ -658,7 +642,6 @@ case "${1:-}" in
   new)              shift; cmd_new "$@" ;;
   rename)           shift; cmd_rename "$@" ;;
   add-agent)        cmd_add_agent ;;
-  review)           cmd_review ;;
   switch)           shift; cmd_switch "$@" ;;
   rm)               shift; cmd_rm "$@" ;;
   file-watch)       shift; cmd_file_watch "$@" ;;

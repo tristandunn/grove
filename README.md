@@ -32,7 +32,6 @@ bind -T grove b display-popup -w 50% -h 3 -E -d "#{pane_current_path}" 'printf "
 bind -T grove d run-shell "grove rm"
 bind -T grove g display-popup -w 60% -h 50% -E "grove switch"
 bind -T grove n display-popup -w 50% -h 3 -E -d "#{pane_current_path}" 'printf "Task Name: " && read -r name && grove new "$name"'
-bind -T grove r run-shell "grove review"
 ```
 
 - `prefix + g a` — Add another agent pane to the current worktree.
@@ -40,7 +39,6 @@ bind -T grove r run-shell "grove review"
 - `prefix + g d` — Delete and close the current worktree.
 - `prefix + g g` — Open the worktree switcher.
 - `prefix + g n` — Prompt for a task name and create a new worktree.
-- `prefix + g r` — Open a review agent pane for the current changes.
 
 ## Usage
 
