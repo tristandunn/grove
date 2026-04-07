@@ -66,7 +66,7 @@ diff_status() {
         if (fn in sd && sd[fn] != "-" && sd[fn]+0 > 0) stat = stat (stat ? " " : "") "\033[31m-" sd[fn] "\033[0m"
         line = "  " st "  " pad(fn, max_len)
         if (stat != "") line = line "  " stat
-        print line "\t" fn
+        print line "\t" fn "\tunstaged"
       }
       if (s > 0) printf "\033[1;2mStaged\033[0m\t\n"
       for (i = 1; i <= s; i++) {
@@ -76,7 +76,7 @@ diff_status() {
         if (fn in sd && sd[fn] != "-" && sd[fn]+0 > 0) stat = stat (stat ? " " : "") "\033[31m-" sd[fn] "\033[0m"
         line = "  \033[90m" st "\033[0m  " pad(fn, max_len)
         if (stat != "") line = line "  " stat
-        print line "\t" fn
+        print line "\t" fn "\tstaged"
       }
     }
   '
@@ -131,7 +131,7 @@ cmd_file_watch() {
       --footer=$'Enter: View  Ctrl-a: Stage  Ctrl-u: Unstage' \
       --bind "change:reload:grove file-watch --status" \
       --bind "load:reload:sleep 2 && grove file-watch --status" \
-      --bind 'enter:transform:[[ -n {2} ]] && echo "execute(tmux display-popup -d \"\$PWD\" -w 80% -h 80% -E \"grove show-diff {2}\")"' \
+      --bind 'enter:transform:[[ -n {2} ]] && echo "execute(tmux display-popup -d \"\$PWD\" -w 80% -h 80% -E \"grove show-diff {2} {3}\")"' \
       --bind 'ctrl-a:execute-silent(git add -- {2})+reload(grove file-watch --status)' \
       --bind 'ctrl-u:execute-silent(git reset HEAD -- {2})+reload(grove file-watch --status)' \
       || true  # fzf returns non-zero when the list is empty.
@@ -140,16 +140,17 @@ cmd_file_watch() {
   done
 }
 
-# Show the difference for a single file in a pager. Files in HEAD are diffed
-# against HEAD, new files are diffed against /dev/null, and staged files that
-# have been deleted from the working tree are diffed against the index.
+# Show the difference for a single file in a pager. Staged files are diffed
+# against the index, unstaged files are diffed against the working tree, and
+# new files are diffed against /dev/null.
 cmd_show_diff() {
   if [[ $# -eq 0 ]]; then
-    echo "Usage: grove show-diff <file>" >&2
+    echo "Usage: grove show-diff <file> [staged|unstaged]" >&2
     exit 1
   fi
 
   local -r file="${1}"
+  local -r section="${2:-unstaged}"
 
   local tracked=false
   if git ls-files --error-unmatch -- "${file}" &>/dev/null; then
@@ -160,8 +161,10 @@ cmd_show_diff() {
     exit 0
   fi
 
-  if git rev-parse --verify HEAD:"${file}" &>/dev/null; then
-    git diff --color=always HEAD -- "${file}" | less -R +g
+  if [[ "${section}" == "staged" ]]; then
+    git diff --color=always --cached -- "${file}" | less -R +g
+  elif git rev-parse --verify HEAD:"${file}" &>/dev/null; then
+    git diff --color=always -- "${file}" | less -R +g
   elif [[ -e "${file}" ]]; then
     git diff --color=always --no-index -- /dev/null "${file}" | less -R +g || true
   else

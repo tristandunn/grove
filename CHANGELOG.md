@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Remove the `grove review` command.
+- Fix file watcher preview to show only relevant changes for each section.
 
 ## v0.4.0 - April 6th, 2026
 
