@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Add `GROVE_PREFIX` environment variable to configure the worktree prefix.
 - Remove the `grove review` command.
 - Fix file watcher preview to show only relevant changes for each section.
 

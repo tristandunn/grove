@@ -212,7 +212,8 @@ open_worktree() {
 
 # Create a new task. This sets up a git worktree, a dedicated branch, and a
 # tmux window with the standard three-pane layout. The task name is slugified
-# and given a short random suffix to avoid branch name collisions.
+# and the worktree directory and branch both take the form
+# "${GROVE_PREFIX}${slug}" (default prefix: "grove/").
 cmd_new() {
   if [[ $# -eq 0 ]]; then
     echo "Usage: grove new <task-name>" >&2
@@ -241,13 +242,9 @@ cmd_new() {
     error "Task name produced an empty slug."
   fi
 
-  # Short random suffix to prevent collisions when reusing the same task name.
-  local hash
-  hash=$(head -c 256 /dev/urandom | LC_ALL=C tr -dc 'a-z0-9' | head -c 3)
-
-  local -r id="${slug}-${hash}"
+  local -r id="${GROVE_PREFIX-grove/}${slug}"
   local -r worktree_path="${worktrees_dir}/${id}"
-  local -r branch="grove/${id}"
+  local -r branch="${id}"
 
   local default_branch
   default_branch=$(git -C "${main_root}" symbolic-ref --short HEAD)
@@ -257,7 +254,7 @@ cmd_new() {
   # The session names cannot contain dots or colons.
   local -r session="${project_name//[.:]/_}"
 
-  open_worktree "${session}" "${slug}" "${worktree_path}"
+  open_worktree "${session}" "$(basename "${worktree_path}")" "${worktree_path}"
 }
 
 # Build the worktree list for the switcher. Scans every repository under
@@ -314,23 +311,21 @@ switch_entries() {
         branch=""
       fi
     done < <(git -C "${repo}" worktree list --porcelain)
-  # Format entries for fzf. When multiple worktrees share the same slug, the
-  # full name is shown to disambiguate. Hidden tab-separated columns carry the
-  # project name and path for actions.
+  # Format entries for fzf. Each entry displays the worktree directory's
+  # basename; hidden tab-separated columns carry the project name and path for
+  # actions.
   done | awk -v curr="${current_project}" -F'\t' '{print ($1==curr?"0":"1") "\t" $0}' \
        | sort \
        | cut -f2- \
        | awk -F'\t' '{
     proj[NR] = $1; path[NR] = $3
-    name = $3; sub(/.*\//, "", name); full[NR] = name
-    slug = name; sub(/-[a-z0-9][a-z0-9][a-z0-9]$/, "", slug); short[NR] = slug
-    count[$1, slug]++
+    name = $3; sub(/.*\//, "", name)
+    display[NR] = name
   }
   END {
     for (i = 1; i <= NR; i++) {
       if (proj[i] != prev) { printf "\033[1;2m%s\033[0m\n", proj[i]; prev = proj[i] }
-      display = (count[proj[i], short[i]] > 1) ? full[i] : short[i]
-      printf "  %-512s%s\t%s\t%s\n", display, proj[i], proj[i], path[i]
+      printf "  %-512s%s\t%s\t%s\n", display[i], proj[i], proj[i], path[i]
     }
   }'
 }
@@ -344,7 +339,7 @@ cmd_delete_confirm() {
   fi
 
   local name
-  name=$(basename "${worktree_path}" | sed 's/-[a-z0-9]\{3\}$//')
+  name=$(basename "${worktree_path}")
 
   printf 'Delete "%s"? [y/N] ' "${name}" >/dev/tty
   local answer
@@ -399,7 +394,7 @@ cmd_switch() {
   fi
 
   local window_name
-  window_name=$(basename "${worktree_path}" | sed 's/-[a-z0-9]\{3\}$//')
+  window_name=$(basename "${worktree_path}")
 
   local -r session="${project//[.:]/_}"
 
@@ -544,7 +539,7 @@ cmd_rename_prompt() {
   fi
 
   local old_name
-  old_name=$(basename "${worktree_path}" | sed 's/-[a-z0-9]\{3\}$//')
+  old_name=$(basename "${worktree_path}")
 
   printf 'Rename "%s" to: ' "${old_name}" >/dev/tty
   local new_name
@@ -636,6 +631,7 @@ Commands
 
 Environment Variables
   GROVE_AGENT        Command to run in the left pane. (default: claude)
+  GROVE_PREFIX       Branch and directory prefix for new worktrees. (default: grove/)
   GROVE_ROOT         Parent directory to scan for repositories. (default: ~/Sites)
   GROVE_WORKTREES    Directory to create worktrees in. (default: <repository>/../worktrees)
 EOF
