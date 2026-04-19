@@ -4,6 +4,7 @@
 
 - Add `GROVE_PREFIX` environment variable to configure the worktree prefix.
 - Remove the `grove review` command.
+- Scope the switcher to the current project when invoked inside one.
 - Strip `GROVE_PREFIX` from worktree names shown in the switcher.
 - Fix file watcher preview to show only relevant changes for each section.
 
