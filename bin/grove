@@ -311,15 +311,18 @@ switch_entries() {
         branch=""
       fi
     done < <(git -C "${repo}" worktree list --porcelain)
-  # Format entries for fzf. Each entry displays the worktree directory's
-  # basename; hidden tab-separated columns carry the project name and path for
-  # actions.
+  # Format entries for fzf. Each entry displays the branch name with the
+  # GROVE_PREFIX stripped; hidden tab-separated columns carry the project name
+  # and path for actions.
   done | awk -v curr="${current_project}" -F'\t' '{print ($1==curr?"0":"1") "\t" $0}' \
        | sort \
        | cut -f2- \
-       | awk -F'\t' '{
+       | awk -v prefix="${GROVE_PREFIX-grove/}" -F'\t' '{
     proj[NR] = $1; path[NR] = $3
-    name = $3; sub(/.*\//, "", name)
+    name = $2
+    if (substr(name, 1, length(prefix)) == prefix) {
+      name = substr(name, length(prefix) + 1)
+    }
     display[NR] = name
   }
   END {
