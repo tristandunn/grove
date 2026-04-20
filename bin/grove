@@ -86,19 +86,23 @@ diff_status() {
 # coding agent, the top-right pane runs the file watcher, and the bottom-right
 # pane is a free shell.
 cmd_layout() {
-  if [[ $# -ne 2 ]]; then
-    echo "Usage: grove layout <pane-id> <worktree-path>" >&2
+  if [[ $# -lt 2 || $# -gt 3 ]]; then
+    echo "Usage: grove layout <pane-id> <worktree-path> [--continue]" >&2
     exit 1
   fi
 
   local -r pane_left="$1"
   local -r worktree_path="$2"
+  local -r continue_flag="${3:-}"
 
   local pane_watcher
   pane_watcher=$(tmux split-window -t "${pane_left}" -h -l '45%' -c "${worktree_path}" -P -F '#{pane_id}')
   tmux split-window -t "${pane_watcher}" -v -l '50%' -c "${worktree_path}"
 
-  local -r agent="${GROVE_AGENT:-claude}"
+  local agent="${GROVE_AGENT:-claude}"
+  if [[ "${continue_flag}" == "--continue" ]]; then
+    agent="${agent} --continue"
+  fi
 
   # Sleep so new panes have time to initialize before sending keystrokes.
   sleep 0.3
@@ -179,6 +183,7 @@ open_worktree() {
   local -r session="$1"
   local -r window_name="$2"
   local -r working_dir="$3"
+  local -r continue_flag="${4:-}"
 
   local pane_left
   if tmux has-session -t "${session}" 2>/dev/null; then
@@ -203,7 +208,7 @@ open_worktree() {
   target_window=$(tmux display-message -t "${pane_left}" -p '#{session_name}:#{window_index}')
   tmux select-window -t "${target_window}" 2>/dev/null || true
 
-  cmd_layout "${pane_left}" "${working_dir}"
+  cmd_layout "${pane_left}" "${working_dir}" "${continue_flag}"
 
   if [[ -z "${TMUX:-}" ]]; then
     exec tmux attach-session -t "${session}"
@@ -428,7 +433,7 @@ cmd_switch() {
     exit 0
   fi
 
-  open_worktree "${session}" "${window_name}" "${worktree_path}"
+  open_worktree "${session}" "${window_name}" "${worktree_path}" --continue
 }
 
 # Split a new vertical pane in the leftmost column and start a coding agent in

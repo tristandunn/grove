@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Add `GROVE_PREFIX` environment variable to configure the worktree prefix.
+- Continue the prior agent session when opening an existing worktree.
 - Remove the `grove review` command.
 - Scope the switcher to the current project when invoked inside one.
 - Strip `GROVE_PREFIX` from worktree names shown in the switcher.
