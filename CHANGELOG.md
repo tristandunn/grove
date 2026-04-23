@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.5.0 - April 22nd, 2026
 
 - Add `GROVE_PREFIX` environment variable to configure the worktree prefix.
 - Continue the prior agent session when opening an existing worktree.
