@@ -177,6 +177,39 @@ cmd_show_diff() {
   fi
 }
 
+# Resolve a `.grove/` script path, preferring the worktree's copy and falling
+# back to the main repository's. This lets users keep `.grove/` out of source
+# control without losing the script when working from a fresh worktree.
+resolve_grove_script() {
+  local -r working_dir="$1"
+  local -r script_name="$2"
+
+  local -r worktree_script="${working_dir}/.grove/${script_name}"
+  if [[ -e "${worktree_script}" ]]; then
+    printf '%s\n' "${worktree_script}"
+    return
+  fi
+
+  local git_common_dir
+  git_common_dir=$(git -C "${working_dir}" rev-parse --git-common-dir 2>/dev/null || true)
+
+  if [[ -z "${git_common_dir}" ]]; then
+    return
+  fi
+
+  if [[ "${git_common_dir}" != /* ]]; then
+    git_common_dir="${working_dir}/${git_common_dir}"
+  fi
+
+  local main_dir
+  main_dir=$(dirname "${git_common_dir}")
+
+  local -r main_script="${main_dir}/.grove/${script_name}"
+  if [[ -e "${main_script}" ]]; then
+    printf '%s\n' "${main_script}"
+  fi
+}
+
 # Open or create a tmux session/window for a worktree and apply the standard
 # layout. Reuses an existing session when one is found; otherwise creates a new
 # detached session with accurate dimensions and attaches if outside tmux.
@@ -214,11 +247,14 @@ open_worktree() {
   pane_shell=$(cmd_layout "${pane_left}" "${working_dir}" "${continue_flag}")
 
   if [[ "${run_setup}" == "true" ]]; then
-    local -r setup_script="${working_dir}/.grove/setup.sh"
-    if [[ -x "${setup_script}" ]]; then
-      tmux send-keys -t "${pane_shell}" "${setup_script}" Enter
-    elif [[ -f "${setup_script}" ]]; then
-      tmux display-message -d 3000 "grove: .grove/setup.sh is not executable."
+    local setup_script
+    setup_script=$(resolve_grove_script "${working_dir}" "setup.sh")
+    if [[ -n "${setup_script}" ]]; then
+      if [[ -x "${setup_script}" ]]; then
+        tmux send-keys -t "${pane_shell}" "${setup_script}" Enter
+      else
+        tmux display-message -d 3000 "grove: .grove/setup.sh is not executable."
+      fi
     fi
   fi
 
@@ -598,9 +634,10 @@ cmd_run() {
     error "Not inside a git repository."
   fi
 
-  local -r run_script="${worktree_path}/.grove/run.sh"
+  local run_script
+  run_script=$(resolve_grove_script "${worktree_path}" "run.sh")
 
-  if [[ ! -f "${run_script}" ]]; then
+  if [[ -z "${run_script}" ]]; then
     error ".grove/run.sh not found."
   fi
 

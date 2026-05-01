@@ -119,6 +119,11 @@ your repository:
 Both scripts must be executable. If `setup.sh` exists but is not executable,
 grove shows a transient warning instead of running it.
 
+Grove looks for these scripts in the worktree first, then falls back to the
+main repository's `.grove/` directory. This means you can keep `.grove/` out
+of source control (e.g. via `.gitignore`) and the scripts will still apply to
+worktrees created from that repo.
+
 ## Environment Variables
 
 | Variable | Default | Description |
