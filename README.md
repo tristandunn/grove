@@ -30,6 +30,7 @@ bind g switch-client -T grove
 bind -T grove a run-shell "grove add-agent"
 bind -T grove b display-popup -w 50% -h 3 -E -d "#{pane_current_path}" 'printf "New Name: " && read -r name && grove rename "$name"'
 bind -T grove d run-shell "grove rm"
+bind -T grove e display-popup -w 80% -h 80% -E -d "#{pane_current_path}" '$EDITOR .'
 bind -T grove g display-popup -w 60% -h 50% -E "grove switch"
 bind -T grove n display-popup -w 50% -h 3 -E -d "#{pane_current_path}" 'printf "Task Name: " && read -r name && grove new "$name"'
 bind -T grove r run-shell "grove run"
@@ -38,6 +39,7 @@ bind -T grove r run-shell "grove run"
 - `prefix + g a` — Add another agent pane to the current worktree.
 - `prefix + g b` — Rename the current worktree and its branch.
 - `prefix + g d` — Delete and close the current worktree.
+- `prefix + g e` — Open `$EDITOR` for the current directory in a floating popup.
 - `prefix + g g` — Open the worktree switcher.
 - `prefix + g n` — Prompt for a task name and create a new worktree.
 - `prefix + g r` — Execute the project run script in the shell pane.

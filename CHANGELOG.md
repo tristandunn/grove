@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Add support for project setup and run scripts.
+- Add binding for opening an editor popup.
 - Resolve scripts from the main repository as a fallback.
 - Fix unstaged preview for newly added files.
 
