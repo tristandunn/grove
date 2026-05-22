@@ -6,6 +6,7 @@
 - Add binding for opening an editor popup.
 - Resolve scripts from the main repository as a fallback.
 - Fix unstaged preview for newly added files.
+- Fix the switcher when the current project lives outside `$GROVE_ROOT`.
 
 ## v0.5.0 - April 22nd, 2026
 

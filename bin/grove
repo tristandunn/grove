@@ -323,7 +323,7 @@ switch_entries() {
   # Resolve the current project so we can scope the list to it. The
   # git-common-dir result points at the main repository's .git even from
   # inside a worktree.
-  local current_project=""
+  local current_project="" project_dir=""
   local git_common_dir
   git_common_dir=$(git rev-parse --git-common-dir 2>/dev/null || true)
 
@@ -332,17 +332,13 @@ switch_entries() {
       git_common_dir="${PWD}/${git_common_dir}"
     fi
 
-    local project_dir
     project_dir=$(dirname "${git_common_dir}")
-
-    if [[ "${project_dir}" == "${root_dir}/"* ]]; then
-      current_project=$(basename "${project_dir}")
-    fi
+    current_project=$(basename "${project_dir}")
   fi
 
   local repos
-  if [[ -n "${current_project}" ]]; then
-    repos=("${root_dir}/${current_project}/")
+  if [[ -n "${project_dir}" ]]; then
+    repos=("${project_dir}/")
   else
     repos=("${root_dir}"/*/)
   fi
