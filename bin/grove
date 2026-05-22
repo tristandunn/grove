@@ -283,8 +283,9 @@ cmd_new() {
   local project_name
   project_name=$(basename "${main_root}")
 
+  local -r root_dir="${GROVE_ROOT:-${HOME}/Sites}"
   local worktrees_dir
-  worktrees_dir="${GROVE_WORKTREES:-$(dirname "${main_root}")/worktrees}"
+  worktrees_dir="${GROVE_WORKTREES:-${root_dir}/worktrees}"
 
   # Slugify the task name by lowercasing it, replacing spaces with hyphens, and
   # stripping special characters.
@@ -312,18 +313,15 @@ cmd_new() {
 
 # Build the worktree list for the switcher. When invoked inside a grove-managed
 # project, lists only that project's non-main worktrees. Otherwise, scans every
-# repository under GROVE_ROOT.
+# project that has worktrees under ${GROVE_ROOT}/worktrees.
 switch_entries() {
   local -r root_dir="${GROVE_ROOT:-${HOME}/Sites}"
-
-  if [[ ! -d "${root_dir}" ]]; then
-    error "${root_dir} does not exist."
-  fi
+  local -r worktrees_root="${root_dir}/worktrees"
 
   # Resolve the current project so we can scope the list to it. The
   # git-common-dir result points at the main repository's .git even from
   # inside a worktree.
-  local current_project="" project_dir=""
+  local current_project="" main_root=""
   local git_common_dir
   git_common_dir=$(git rev-parse --git-common-dir 2>/dev/null || true)
 
@@ -332,20 +330,38 @@ switch_entries() {
       git_common_dir="${PWD}/${git_common_dir}"
     fi
 
-    project_dir=$(dirname "${git_common_dir}")
-    current_project=$(basename "${project_dir}")
+    main_root=$(dirname "${git_common_dir}")
+    current_project=$(basename "${main_root}")
   fi
 
-  local repos
-  if [[ -n "${project_dir}" ]]; then
-    repos=("${project_dir}/")
+  local repos=()
+  if [[ -n "${main_root}" ]]; then
+    repos=("${main_root}")
   else
-    repos=("${root_dir}"/*/)
+    if [[ ! -d "${worktrees_root}" ]]; then
+      error "${worktrees_root} does not exist."
+    fi
+
+    # Each subdirectory is a worktree. Resolve each one to its main
+    # repository so we can list worktrees from there, deduping repos across
+    # the iteration.
+    local worktree_dir proj_main
+    declare -A seen=()
+    for worktree_dir in "${worktrees_root}"/*/; do
+      if [[ ! -e "${worktree_dir}.git" ]]; then
+        continue
+      fi
+      proj_main=$(git -C "${worktree_dir}" worktree list --porcelain 2>/dev/null | head -1 | sed 's/^worktree //')
+      if [[ -n "${proj_main}" && -z "${seen[${proj_main}]:-}" ]]; then
+        seen[${proj_main}]=1
+        repos+=("${proj_main}")
+      fi
+    done
   fi
 
   local branch project ref worktree_path
   for repo in "${repos[@]}"; do
-    if [[ ! -e "${repo}.git" ]]; then
+    if [[ ! -e "${repo}/.git" ]]; then
       continue
     fi
 
@@ -360,7 +376,7 @@ switch_entries() {
         ref="${line#branch }"
         branch="${ref#refs/heads/}"
       elif [[ -z "${line}" ]]; then
-        if [[ -n "${branch}" && -n "${worktree_path}" && "${worktree_path}" != "${repo%/}" && -d "${worktree_path}" ]]; then
+        if [[ -n "${branch}" && -n "${worktree_path}" && "${worktree_path}" != "${repo}" && -d "${worktree_path}" ]]; then
           printf '%s\t%s\t%s\n' "${project}" "${branch}" "${worktree_path}"
         fi
         worktree_path=""
@@ -734,8 +750,8 @@ Commands
 Environment Variables
   GROVE_AGENT        Command to run in the left pane. (default: claude)
   GROVE_PREFIX       Branch and directory prefix for new worktrees. (default: grove/)
-  GROVE_ROOT         Parent directory to scan for repositories. (default: ~/Sites)
-  GROVE_WORKTREES    Directory to create worktrees in. (default: <repository>/../worktrees)
+  GROVE_ROOT         Parent directory that holds the central worktrees dir. (default: ~/Sites)
+  GROVE_WORKTREES    Directory to create worktrees in. (default: $GROVE_ROOT/worktrees)
 EOF
 }
 

@@ -5,6 +5,7 @@
 - Add support for project setup and run scripts.
 - Add binding for opening an editor popup.
 - Resolve scripts from the main repository as a fallback.
+- Centralize new worktrees under `$GROVE_ROOT/worktrees`.
 - Fix unstaged preview for newly added files.
 - Fix the switcher when the current project lives outside `$GROVE_ROOT`.
 
