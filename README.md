@@ -34,6 +34,7 @@ bind -T grove e display-popup -w 80% -h 80% -E -d "#{pane_current_path}" '$EDITO
 bind -T grove g display-popup -w 60% -h 50% -E "grove switch"
 bind -T grove n display-popup -w 50% -h 3 -E -d "#{pane_current_path}" 'printf "Task Name: " && read -r name && grove new "$name"'
 bind -T grove r run-shell "grove run"
+bind -T grove s display-popup -w 80% -h 80% -E -d "#{pane_current_path}" "$SHELL -l"
 ```
 
 - `prefix + g a` — Add another agent pane to the current worktree.
@@ -43,6 +44,7 @@ bind -T grove r run-shell "grove run"
 - `prefix + g g` — Open the worktree switcher.
 - `prefix + g n` — Prompt for a task name and create a new worktree.
 - `prefix + g r` — Execute the project run script in the shell pane.
+- `prefix + g s` — Open a shell for the current directory in a floating popup.
 
 ## Usage
 
