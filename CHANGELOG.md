@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.6.0 - June 26th, 2026
 
 - Add support for project setup and run scripts.
 - Add binding for opening an editor popup.
