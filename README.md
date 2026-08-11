@@ -137,6 +137,14 @@ worktrees created from that repo.
 | `GROVE_ROOT` | `~/Sites` | Parent directory to scan for repositories. |
 | `GROVE_WORKTREES` | `<repository>/../worktrees` | Directory to create worktrees in. |
 
+## Exported Variables
+
+These variables are only exported to the shell pane.
+
+| Variable | Value | Description |
+|---|---|---|
+| `GROVE_WORKSPACE_NAME` | `<branch>` | The branch name with `GROVE_PREFIX` stripped. |
+
 ## License
 
 Grove uses the MIT license. See [LICENSE](LICENSE) for more details.

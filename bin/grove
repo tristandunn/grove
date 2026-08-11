@@ -82,9 +82,27 @@ diff_status() {
   '
 }
 
+# Derive the workspace name for a worktree, which is the branch name with the
+# GROVE_PREFIX stripped. Prints nothing when the path has no checked-out
+# branch.
+workspace_name() {
+  local -r working_dir="$1"
+  local -r prefix="${GROVE_PREFIX-grove/}"
+
+  local name
+  name=$(git -C "${working_dir}" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+
+  if [[ "${name}" == "HEAD" ]]; then
+    return
+  fi
+
+  printf '%s\n' "${name#"${prefix}"}"
+}
+
 # Set up the three-pane layout for a worktree window. The left pane runs the
 # coding agent, the top-right pane runs the file watcher, and the bottom-right
-# pane is a free shell. Prints the shell pane ID to stdout.
+# pane is a free shell that carries GROVE_WORKSPACE_NAME. Prints the shell pane
+# ID to stdout.
 cmd_layout() {
   if [[ $# -lt 2 || $# -gt 3 ]]; then
     echo "Usage: grove layout <pane-id> <worktree-path> [--continue]" >&2
@@ -95,10 +113,13 @@ cmd_layout() {
   local -r worktree_path="$2"
   local -r continue_flag="${3:-}"
 
+  local workspace
+  workspace=$(workspace_name "${worktree_path}")
+
   local pane_watcher
   pane_watcher=$(tmux split-window -t "${pane_left}" -h -l '45%' -c "${worktree_path}" -P -F '#{pane_id}')
   local pane_shell
-  pane_shell=$(tmux split-window -t "${pane_watcher}" -v -l '50%' -c "${worktree_path}" -P -F '#{pane_id}')
+  pane_shell=$(tmux split-window -t "${pane_watcher}" -v -l '50%' -c "${worktree_path}" -e "GROVE_WORKSPACE_NAME=${workspace}" -P -F '#{pane_id}')
 
   local agent="${GROVE_AGENT:-claude}"
   if [[ "${continue_flag}" == "--continue" ]]; then
@@ -752,6 +773,9 @@ Environment Variables
   GROVE_PREFIX       Branch and directory prefix for new worktrees. (default: grove/)
   GROVE_ROOT         Parent directory that holds the central worktrees dir. (default: ~/Sites)
   GROVE_WORKTREES    Directory to create worktrees in. (default: $GROVE_ROOT/worktrees)
+
+Exported Variables
+  GROVE_WORKSPACE_NAME  The branch name with GROVE_PREFIX stripped.
 EOF
 }
 
