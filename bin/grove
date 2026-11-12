@@ -82,6 +82,15 @@ diff_status() {
   '
 }
 
+# Print the main worktree path from `git worktree list --porcelain`. The output
+# is read in full first, since `head` exiting early would SIGPIPE git.
+main_worktree_root() {
+  local worktree_list
+  worktree_list=$(git "$@" worktree list --porcelain) || return 1
+
+  printf '%s\n' "${worktree_list%%$'\n'*}" | sed 's/^worktree //'
+}
+
 # Print the branch checked out in a worktree, or nothing when it is detached.
 # Unlike `rev-parse --abbrev-ref`, this is the plain branch name even when a tag
 # has the same name.
@@ -315,7 +324,7 @@ cmd_new() {
   fi
 
   local main_root
-  main_root=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')
+  main_root=$(main_worktree_root)
 
   local project_name
   project_name=$(basename "${main_root}")
@@ -622,7 +631,7 @@ cmd_rename() {
   fi
 
   local main_root
-  main_root=$(git -C "${current_worktree}" worktree list --porcelain | head -1 | sed 's/^worktree //')
+  main_root=$(main_worktree_root -C "${current_worktree}")
 
   if [[ "${current_worktree}" == "${main_root}" ]]; then
     error "Cannot rename the main worktree."
@@ -790,12 +799,12 @@ cmd_rm() {
   # and branch from the worktree list of the current repository instead.
   local branch main_root
   if [[ -d "${current_worktree}" ]]; then
-    main_root=$(git -C "${current_worktree}" worktree list --porcelain | head -1 | sed 's/^worktree //')
+    main_root=$(main_worktree_root -C "${current_worktree}")
     branch=$(current_branch "${current_worktree}")
   else
     local worktree_list
     worktree_list=$(git worktree list --porcelain)
-    main_root=$(printf '%s\n' "${worktree_list}" | head -1 | sed 's/^worktree //')
+    main_root=$(printf '%s\n' "${worktree_list%%$'\n'*}" | sed 's/^worktree //')
     branch=$(printf '%s\n' "${worktree_list}" | awk -v entry="worktree ${current_worktree}" '
       $0 == entry          { found = 1; next }
       /^$/                 { found = 0 }

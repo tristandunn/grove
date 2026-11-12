@@ -405,3 +405,12 @@ setup() {
   assert_success
   refute_tmux_called "display-message -p"
 }
+
+@test "rename: works in a repository with many worktrees" {
+  add_many_worktrees "${REPO}"
+
+  run_grove rename other
+
+  assert_success
+  assert [ -d "${GROVE_WORKTREES}/grove-other" ]
+}

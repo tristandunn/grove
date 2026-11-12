@@ -615,3 +615,12 @@ setup() {
   run bash -c "$(tmux_sent_keys %3)"
   assert_output "setup.sh"
 }
+
+@test "new: works in a repository with many worktrees" {
+  add_many_worktrees "${REPO}"
+
+  run_grove new thing
+
+  assert_success
+  assert [ -d "${GROVE_WORKTREES}/grove-thing" ]
+}

@@ -386,3 +386,23 @@ setup() {
   refute worktree_registered "${REPO}" "${WORKTREE}"
   assert_tmux_call_exact "kill-window -t grove:2"
 }
+
+@test "rm: works in a repository with many worktrees" {
+  add_many_worktrees "${REPO}"
+
+  run_grove rm
+
+  assert_success
+  assert [ ! -d "${WORKTREE}" ]
+}
+
+@test "rm: --path stops when the worktree's repository link is broken" {
+  printf 'gitdir: %s\n' "${TEST_TMP}/missing" > "${WORKTREE}/.git"
+  cd "${REPO}"
+
+  run_grove rm --path "${WORKTREE}"
+
+  assert_failure
+  assert [ -d "${WORKTREE}" ]
+  assert_equal "$(grep -c "null directory\|worktree remove" <<<"${stderr}")" "0"
+}

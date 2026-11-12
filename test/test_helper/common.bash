@@ -209,6 +209,17 @@ make_worktree() {
   printf '%s\n' "${worktree_path}"
 }
 
+# Register enough linked worktrees that `git worktree list --porcelain` prints
+# more than 4KB, which git writes in several chunks. Usage: add_many_worktrees <repo>
+add_many_worktrees() {
+  local -r repo_path="$1"
+  local index
+
+  for index in $(seq 1 40); do
+    git -C "${repo_path}" worktree add --quiet "${TEST_TMP}/many/worktree-number-${index}" -b "many-${index}"
+  done
+}
+
 # Commit a script into a repository's .grove/ directory (so every worktree gets
 # a copy). Usage: commit_grove_script <repo> <name> [mode]
 commit_grove_script() {

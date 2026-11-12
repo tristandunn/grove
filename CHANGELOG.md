@@ -22,6 +22,7 @@
 - Fix opening a worktree in the wrong tmux session.
 - Fix the file watcher when git is configured to always use color.
 - Fix removing a worktree whose branch shares its name with a tag.
+- Fix commands failing silently with many worktrees.
 
 ## v0.6.0 - June 26th, 2026
 
