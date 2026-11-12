@@ -11,6 +11,7 @@
 - Fix file watcher to show partially staged files in both sections.
 - Fix creating a worktree at an existing path leaving a branch.
 - Fix renaming a worktree by path from outside a repository.
+- Fix removing a worktree whose directory is already gone.
 
 ## v0.6.0 - June 26th, 2026
 

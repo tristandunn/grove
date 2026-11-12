@@ -56,7 +56,6 @@ setup() {
 }
 
 @test "rm: --path with a registered directory that is already gone removes the stale entry" {
-  skip "BUG: git -C on the missing directory aborts the script (fatal: cannot change to ...), so stale entries are never cleaned up."
   rm -rf "${WORKTREE}"
   cd "${REPO}"
 
@@ -65,17 +64,6 @@ setup() {
   assert_success
   refute worktree_registered "${REPO}" "${WORKTREE}"
   refute branch_exists "${REPO}" "grove-task"
-}
-
-@test "rm: --path with a registered directory that is already gone currently fails and keeps the entry" {
-  rm -rf "${WORKTREE}"
-  cd "${REPO}"
-
-  run_grove rm --path "${WORKTREE}"
-
-  assert_failure
-  assert_stderr --partial "cannot change to"
-  assert worktree_registered "${REPO}" "${WORKTREE}"
 }
 
 # --- Main worktree -----------------------------------------------------------

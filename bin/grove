@@ -741,15 +741,26 @@ cmd_rm() {
     current_worktree=$(git rev-parse --show-toplevel)
   fi
 
-  local main_root
-  main_root=$(git -C "${current_worktree}" worktree list --porcelain | head -1 | sed 's/^worktree //')
+  # A stale entry has no directory to run git in, so read the main repository
+  # and branch from the worktree list of the current repository instead.
+  local branch main_root
+  if [[ -d "${current_worktree}" ]]; then
+    main_root=$(git -C "${current_worktree}" worktree list --porcelain | head -1 | sed 's/^worktree //')
+    branch=$(git -C "${current_worktree}" rev-parse --abbrev-ref HEAD)
+  else
+    local worktree_list
+    worktree_list=$(git worktree list --porcelain)
+    main_root=$(printf '%s\n' "${worktree_list}" | head -1 | sed 's/^worktree //')
+    branch=$(printf '%s\n' "${worktree_list}" | awk -v entry="worktree ${current_worktree}" '
+      $0 == entry          { found = 1; next }
+      /^$/                 { found = 0 }
+      found && /^branch /  { sub("refs/heads/", "", $2); print $2 }
+    ')
+  fi
 
   if [[ "${current_worktree}" == "${main_root}" ]]; then
     error "Cannot remove the main worktree. Run this from inside a task worktree."
   fi
-
-  local branch
-  branch=$(git -C "${current_worktree}" rev-parse --abbrev-ref HEAD)
 
   # Find the tmux window whose panes point at this worktree so we can close it
   # after removing the worktree.
@@ -767,7 +778,12 @@ cmd_rm() {
   # Move to the main repository first before deleting the worktree.
   cd "${main_root}" || true
   git worktree remove "${current_worktree}" --force >/dev/null 2>&1 || true
-  git branch -D "${branch}" >/dev/null 2>&1 || true
+  if [[ ! -d "${current_worktree}" ]]; then
+    git worktree prune >/dev/null 2>&1 || true
+  fi
+  if [[ -n "${branch}" ]]; then
+    git branch -D "${branch}" >/dev/null 2>&1 || true
+  fi
 
   if [[ -n "${win_target}" ]]; then
     tmux kill-window -t "${win_target}" 2>/dev/null || true
