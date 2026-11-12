@@ -21,14 +21,16 @@ error() {
 # key for staging, unstaging, and previewing.
 diff_status() {
   # Collect numstat and short status into one stream, separated by ASCII file
-  # separator characters (\034) so they never conflict with filenames.
+  # separator characters (\034) so they never conflict with filenames. The -z
+  # flag keeps git from quoting names with spaces, quotes or non-ASCII
+  # characters; the NUL terminators are then converted back to newlines.
   {
     printf '\034unstaged\n'
-    git diff --numstat --no-renames 2>/dev/null || true
+    git diff -z --numstat --no-renames 2>/dev/null | tr '\0' '\n' || true
     printf '\034staged\n'
-    git diff --numstat --no-renames --cached 2>/dev/null || true
+    git diff -z --numstat --no-renames --cached 2>/dev/null | tr '\0' '\n' || true
     printf '\034status\n'
-    git status --short --no-renames --untracked-files=all
+    git status -z --short --no-renames --untracked-files=all | tr '\0' '\n'
   } | awk '
   # The awk script merges the three sections into display lines. Unstaged files
   # show normally while staged files are dimmed. Each file gets colored add and
