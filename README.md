@@ -56,7 +56,7 @@ Create a new worktree from inside any repository:
 grove new fix login bug
 ```
 
-This creates a worktree at `../worktrees/grove/fix-login-bug`, a branch
+This creates a worktree at `$GROVE_ROOT/worktrees/grove/fix-login-bug`, a branch
 `grove/fix-login-bug`, and opens a tmux window with the full layout.
 
 #### Custom Agent
@@ -135,7 +135,7 @@ worktrees created from that repo.
 | `GROVE_AGENT` | `claude` | Command to run in the left pane. |
 | `GROVE_PREFIX` | `grove/` | Branch and directory prefix for new worktrees. |
 | `GROVE_ROOT` | `~/Sites` | Parent directory to scan for repositories. |
-| `GROVE_WORKTREES` | `<repository>/../worktrees` | Directory to create worktrees in. |
+| `GROVE_WORKTREES` | `$GROVE_ROOT/worktrees` | Directory to create worktrees in. |
 
 ## Exported Variables
 
