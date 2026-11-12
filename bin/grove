@@ -51,7 +51,7 @@ diff_status() {
       if (f[3] != "") { sa[f[3]] = f[1]; sd[f[3]] = f[2] }
       next
     }
-    section == "x" && (/^\?\?/ || /^.[^ ]/) { unstaged[++u] = $0; next }
+    section == "x" && (/^\?\?/ || /^.[^ ]/) { unstaged[++u] = $0 }
     section == "x" && /^[^ ?]/              { staged[++s]   = $0 }
     END {
       max_len = 0
@@ -64,8 +64,6 @@ diff_status() {
         stat = ""
         if (fn in ua && ua[fn] != "-" && ua[fn]+0 > 0) stat =             "\033[32m+" ua[fn] "\033[0m"
         if (fn in ud && ud[fn] != "-" && ud[fn]+0 > 0) stat = stat (stat ? " " : "") "\033[31m-" ud[fn] "\033[0m"
-        if (fn in sa && sa[fn] != "-" && sa[fn]+0 > 0) stat = stat (stat ? " " : "") "\033[32m+" sa[fn] "\033[0m"
-        if (fn in sd && sd[fn] != "-" && sd[fn]+0 > 0) stat = stat (stat ? " " : "") "\033[31m-" sd[fn] "\033[0m"
         line = "  " st "  " pad(fn, max_len)
         if (stat != "") line = line "  " stat
         print line "\t" fn "\tunstaged"

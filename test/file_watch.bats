@@ -226,7 +226,6 @@ display() {
 # --- Both staged and unstaged ----------------------------------------------------
 
 @test "file-watch --status: a file with staged and unstaged changes appears in both sections" {
-  skip "BUG: the awk rule that collects unstaged rows ends with 'next', so a file with changes in both places (status XY, both non-blank) never reaches the staged rule and is listed only under Unstaged."
   printf 'hello\nworld\n' > README.md
   git add README.md
   printf 'hello\nworld\n!\n' > README.md
@@ -237,15 +236,15 @@ display() {
   assert [ -n "$(row README.md staged)" ]
 }
 
-@test "file-watch --status: a file with staged and unstaged changes currently appears once, with the counts combined" {
+@test "file-watch --status: a file with staged and unstaged changes lists each section's own counts" {
   printf 'hello\nworld\n' > README.md
   git add README.md
   printf 'hello\nworld\n!\n' > README.md
 
   run_grove file-watch --status
 
-  assert_equal "$(display README.md unstaged)" "  MM  README.md  ${ESC}[32m+1${ESC}[0m ${ESC}[32m+1${ESC}[0m"
-  assert [ -z "$(row README.md staged)" ]
+  assert_equal "$(display README.md unstaged)" "  MM  README.md  ${ESC}[32m+1${ESC}[0m"
+  assert_equal "$(display README.md staged)" "  ${ESC}[90mMM${ESC}[0m  README.md  ${ESC}[32m+1${ESC}[0m"
 }
 
 # --- Awkward filenames -----------------------------------------------------------
