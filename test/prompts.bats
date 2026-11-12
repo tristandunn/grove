@@ -5,7 +5,7 @@ set -euo pipefail
 # `_rename-prompt` and `_delete-confirm` read their answer from /dev/tty. These
 # tests run them inside a pseudo terminal with script(1), typing the answer on
 # its standard input. The cases where grove returns before reading the terminal
-# use run_grove, because script waits about 2s for unread input before exiting.
+# use run_grove, because there is no answer to type.
 
 load 'test_helper/common'
 

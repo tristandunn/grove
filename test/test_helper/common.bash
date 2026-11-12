@@ -13,12 +13,19 @@ set -euo pipefail
 
 bats_require_minimum_version 1.5.0
 
-load 'test_helper/bats-support/load'
-load 'test_helper/bats-assert/load'
+# The load.bash files of bats-support and bats-assert run dirname in a subshell
+# for every file they source, which costs about 15ms per test. Their src/ files
+# only define functions, so source them directly. BATS_SAVED_PATH is the one
+# variable bats-support/load.bash sets, for bats versions before 1.10.
+BATS_SAVED_PATH="${BATS_SAVED_PATH-${PATH}}"
+for helper_file in "${BATS_TEST_DIRNAME}"/test_helper/bats-{support,assert}/src/*.bash; do
+  source "${helper_file}"
+done
+unset helper_file
 
-GROVE_BIN="$(cd "${BATS_TEST_DIRNAME}/../bin" && pwd -P)/grove"
-STUBS_DIR="$(cd "${BATS_TEST_DIRNAME}/stubs" && pwd -P)"
-readonly GROVE_BIN STUBS_DIR
+# BATS_TEST_DIRNAME is already an absolute path.
+readonly GROVE_BIN="${BATS_TEST_DIRNAME%/*}/bin/grove"
+readonly STUBS_DIR="${BATS_TEST_DIRNAME}/stubs"
 
 # Build a sandbox for one test. Nothing outside BATS_TEST_TMPDIR is touched, and
 # tmux, fzf, less, sleep and tput are replaced by the stubs in test/stubs.
@@ -29,7 +36,30 @@ common_setup() {
   export HOME="${TEST_TMP}/home"
   export GROVE_ROOT="${TEST_TMP}/root"
   export GROVE_WORKTREES="${GROVE_ROOT}/worktrees"
-  export GIT_CONFIG_GLOBAL="${TEST_TMP}/gitconfig"
+  export LC_ALL=C
+
+  export_git_environment "${TEST_TMP}"
+
+  unset TMUX TMUX_PANE GROVE_AGENT GROVE_PREFIX
+  unset LESS_STUB_LOG SLEEP_STUB_LOG TPUT_STUB_COLS TPUT_STUB_LINES TPUT_STUB_FAIL
+
+  export TMUX_STUB_DIR="${TEST_TMP}/stub/tmux"
+  export FZF_STUB_DIR="${TEST_TMP}/stub/fzf"
+  mkdir -p "${HOME}" "${TEST_TMP}/src" "${TMUX_STUB_DIR}" "${FZF_STUB_DIR}"
+
+  # The stubs shadow tmux, fzf, less, sleep and tput for every process the test
+  # starts, including bats helpers, because tests call grove in several ways.
+  export PATH="${STUBS_DIR}:${PATH}"
+}
+
+# Point git at a global config file in the given directory, ignore the system
+# one, and fix the identity and dates so commits are the same in every run.
+# Settings go in through the environment, which avoids spawning git once per
+# setting. Usage: export_git_environment <directory>
+export_git_environment() {
+  local -r sandbox_dir="$1"
+
+  export GIT_CONFIG_GLOBAL="${sandbox_dir}/gitconfig"
   export GIT_CONFIG_NOSYSTEM=1
   export GIT_TERMINAL_PROMPT=0
   export GIT_AUTHOR_NAME="Grove Test"
@@ -38,28 +68,13 @@ common_setup() {
   export GIT_COMMITTER_EMAIL="test@example.com"
   export GIT_AUTHOR_DATE="2026-01-01T00:00:00Z"
   export GIT_COMMITTER_DATE="2026-01-01T00:00:00Z"
-  export LC_ALL=C
 
-  unset TMUX TMUX_PANE GROVE_AGENT GROVE_PREFIX
-  unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_PREFIX
-  unset LESS_STUB_LOG SLEEP_STUB_LOG TPUT_STUB_COLS TPUT_STUB_LINES TPUT_STUB_FAIL
-
-  mkdir -p "${HOME}" "${TEST_TMP}/src"
-
-  # Settings go in through the environment, which avoids spawning git three
-  # times per test. GIT_CONFIG_GLOBAL still points into the sandbox.
   export GIT_CONFIG_COUNT=3
   export GIT_CONFIG_KEY_0="init.defaultBranch" GIT_CONFIG_VALUE_0="main"
   export GIT_CONFIG_KEY_1="commit.gpgsign" GIT_CONFIG_VALUE_1="false"
   export GIT_CONFIG_KEY_2="advice.detachedHead" GIT_CONFIG_VALUE_2="false"
 
-  export TMUX_STUB_DIR="${TEST_TMP}/stub/tmux"
-  export FZF_STUB_DIR="${TEST_TMP}/stub/fzf"
-  mkdir -p "${TMUX_STUB_DIR}" "${FZF_STUB_DIR}"
-
-  # The stubs shadow tmux, fzf, less, sleep and tput for every process the test
-  # starts, including bats helpers, because tests call grove in several ways.
-  export PATH="${STUBS_DIR}:${PATH}"
+  unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_PREFIX
 }
 
 # Fail unless HOME and every grove or git location that is set point inside the
@@ -112,6 +127,10 @@ run_grove_timeout() {
 # Run a command inside a pseudo terminal so grove can read from /dev/tty. The
 # first argument is the text typed at the prompt. Output (including the prompt)
 # ends up in $output.
+#
+# The text is typed through a FIFO that stays open until script(1) exits. When
+# its standard input ends first, script waits in steps of 250ms, up to 2s, for
+# the program to read everything that was typed.
 run_grove_with_tty() {
   local -r typed="$1"
   shift
@@ -121,7 +140,12 @@ run_grove_with_tty() {
   local command_line
   command_line=$(printf '%q ' "${GROVE_BIN}" "$@")
 
-  run bash -c 'printf "%s\n" "$1" | script -qec "$2" /dev/null' _ "${typed}" "${command_line}"
+  local -r input_fifo="${TEST_TMP}/tty-input"
+  rm -f "${input_fifo}"
+  mkfifo "${input_fifo}"
+
+  run bash -c 'script -qec "$2" /dev/null <"$3" & exec 3>"$3"; printf "%s\n" "$1" >&3; wait "$!"' \
+    _ "${typed}" "${command_line}" "${input_fifo}"
 }
 
 # Pretend to be inside a tmux client.
@@ -135,16 +159,26 @@ strip_ansi() {
 
 # --- Git fixtures ----------------------------------------------------------
 
-# Create a repository with one commit and print its path.
-make_repo() {
-  local -r name="$1"
-  local -r repo_path="${TEST_TMP}/src/${name}"
+# Create a repository with one commit at the path. setup_suite builds one with
+# this, and make_repo copies it.
+build_repo_template() {
+  local -r repo_path="$1"
 
   mkdir -p "${repo_path}"
   git -C "${repo_path}" init --quiet
   printf 'hello\n' > "${repo_path}/README.md"
   git -C "${repo_path}" add README.md
   git -C "${repo_path}" commit --quiet -m "Initial commit."
+}
+
+# Create a repository with one commit and print its path. Copying the template
+# from setup_suite is several times faster than running git init, add and
+# commit for every test.
+make_repo() {
+  local -r name="$1"
+  local -r repo_path="${TEST_TMP}/src/${name}"
+
+  cp -a "${REPO_TEMPLATE}" "${repo_path}"
 
   printf '%s\n' "${repo_path}"
 }

@@ -53,24 +53,25 @@ log_call() {
   printf '%s\n' "${line}" >> "${STATE_DIR}/calls.log"
 }
 
-# Print a fixture file's contents, or the default when it does not exist.
+# Set a variable to the value in a fixture file, or to the default when the file
+# does not exist. Reads without a subshell, which matters because the stub runs
+# for every tmux call. Usage: fixture <variable> <name> <default>
 fixture() {
-  local -r name="$1"
-  local -r default="$2"
+  local -r variable="$1"
+  local -r name="$2"
+  local -r default="$3"
 
+  local fixture_value="${default}"
   if [[ -f "${STATE_DIR}/${name}" ]]; then
-    cat "${STATE_DIR}/${name}"
-  else
-    printf '%s\n' "${default}"
+    IFS= read -r fixture_value < "${STATE_DIR}/${name}" || true
   fi
+
+  printf -v "${variable}" '%s' "${fixture_value}"
 }
 
 next_pane_id() {
-  local counter=0
-
-  if [[ -f "${STATE_DIR}/pane_counter" ]]; then
-    counter=$(< "${STATE_DIR}/pane_counter")
-  fi
+  local counter
+  fixture counter pane_counter 0
 
   counter=$((counter + 1))
   printf '%s\n' "${counter}" > "${STATE_DIR}/pane_counter"
@@ -82,11 +83,11 @@ display_message() {
   local output="${last_positional}"
 
   local client_height client_width pane_path session_name window_index
-  client_width=$(fixture client_width 120)
-  client_height=$(fixture client_height 40)
-  pane_path=$(fixture pane_current_path "${PWD}")
-  session_name=$(fixture session_name grove)
-  window_index=$(fixture window_index 0)
+  fixture client_width client_width 120
+  fixture client_height client_height 40
+  fixture pane_path pane_current_path "${PWD}"
+  fixture session_name session_name grove
+  fixture window_index window_index 0
 
   output="${output//"#{client_width}"/"${client_width}"}"
   output="${output//"#{client_height}"/"${client_height}"}"
@@ -101,7 +102,7 @@ display_message() {
 # the current window are listed.
 list_panes() {
   local current_window
-  current_window=$(fixture current_window "grove 0")
+  fixture current_window current_window "grove 0"
 
   if [[ ! -f "${STATE_DIR}/panes" ]]; then
     return
@@ -237,7 +238,8 @@ case "${SUBCOMMAND}" in
       exit 1
     fi
 
-    exit "$(fixture has_session 1)"
+    fixture has_session_status has_session 1
+    exit "${has_session_status}"
     ;;
   display-message)
     if [[ "${print_flag}" == true ]]; then
