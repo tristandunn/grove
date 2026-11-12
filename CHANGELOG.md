@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Export `GROVE_WORKSPACE_NAME` into the shell pane.
+- Change the default `GROVE_PREFIX` from a slash to a dash.
 - Keep the `GROVE_PREFIX` when renaming worktrees.
 - Use `GROVE_WORKTREES` when listing worktrees in the switcher.
 - Fix file watcher to stage names with spaces or quotes.

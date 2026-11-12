@@ -89,7 +89,7 @@ diff_status() {
 # branch.
 workspace_name() {
   local -r working_dir="$1"
-  local -r prefix="${GROVE_PREFIX-grove/}"
+  local -r prefix="${GROVE_PREFIX-grove-}"
 
   local name
   name=$(git -C "${working_dir}" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
@@ -289,7 +289,7 @@ open_worktree() {
 # Create a new task. This sets up a git worktree, a dedicated branch, and a
 # tmux window with the standard three-pane layout. The task name is slugified
 # and the worktree directory and branch both take the form
-# "${GROVE_PREFIX}${slug}" (default prefix: "grove/").
+# "${GROVE_PREFIX}${slug}" (default prefix: "grove-").
 cmd_new() {
   if [[ $# -eq 0 ]]; then
     echo "Usage: grove new <task-name>" >&2
@@ -319,7 +319,7 @@ cmd_new() {
     error "Task name produced an empty slug."
   fi
 
-  local -r id="${GROVE_PREFIX-grove/}${slug}"
+  local -r id="${GROVE_PREFIX-grove-}${slug}"
   local -r worktree_path="${worktrees_dir}/${id}"
   local -r branch="${id}"
 
@@ -412,7 +412,7 @@ switch_entries() {
   done | awk -v curr="${current_project}" -F'\t' '{print ($1==curr?"0":"1") "\t" $0}' \
        | sort \
        | cut -f2- \
-       | awk -v prefix="${GROVE_PREFIX-grove/}" -v scoped="${current_project:+1}" -F'\t' '{
+       | awk -v prefix="${GROVE_PREFIX-grove-}" -v scoped="${current_project:+1}" -F'\t' '{
     proj[NR] = $1; path[NR] = $3
     name = $2
     if (substr(name, 1, length(prefix)) == prefix) {
@@ -603,7 +603,7 @@ cmd_rename() {
   local old_branch
   old_branch=$(git -C "${current_worktree}" rev-parse --abbrev-ref HEAD)
 
-  local -r new_id="${GROVE_PREFIX-grove/}${slug}"
+  local -r new_id="${GROVE_PREFIX-grove-}${slug}"
   local -r new_branch="${new_id}"
 
   # Worktrees are created at "<worktrees dir>/<id>", so strip the old branch
@@ -786,7 +786,7 @@ Commands
 
 Environment Variables
   GROVE_AGENT        Command to run in the left pane. (default: claude)
-  GROVE_PREFIX       Branch and directory prefix for new worktrees. (default: grove/)
+  GROVE_PREFIX       Branch and directory prefix for new worktrees. (default: grove-)
   GROVE_ROOT         Parent directory that holds the central worktrees dir. (default: ~/Sites)
   GROVE_WORKTREES    Directory to create worktrees in. (default: $GROVE_ROOT/worktrees)
 
