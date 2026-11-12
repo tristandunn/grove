@@ -275,6 +275,18 @@ setup() {
   assert_tmux_call_exact "kill-window -t 'my project:2'"
 }
 
+@test "rm: --path with a trailing slash kills the worktree's window" {
+  enter_tmux
+  tmux_add_pane grove 4 0 0 1 %5 "${WORKTREE}"
+  cd "${REPO}"
+
+  run_grove rm --path "${WORKTREE}/"
+
+  assert_success
+  assert [ ! -d "${WORKTREE}" ]
+  assert_tmux_call_exact "kill-window -t grove:4"
+}
+
 @test "rm: kills a window whose pane is in a subdirectory of the worktree" {
   enter_tmux
   tmux_fixture pane_current_path "${WORKTREE}"

@@ -783,7 +783,11 @@ cmd_rm() {
     if [[ -z "${2:-}" ]]; then
       error "grove rm --path requires a path argument."
     fi
+    # Drop trailing slashes, which would never match a pane or worktree path.
     current_worktree="$2"
+    while [[ "${current_worktree}" == ?*/ ]]; do
+      current_worktree="${current_worktree%/}"
+    done
     if [[ ! -f "${current_worktree}/.git" ]]; then
       # The directory may already be gone; accept the path if git still tracks
       # it as a worktree so that stale entries can be cleaned up.

@@ -26,6 +26,7 @@
 - Fix running scripts from paths with spaces.
 - Fix creating a worktree while the main checkout has a detached HEAD.
 - Fix finding a worktree's window when the session name has a space.
+- Fix removing a worktree by path with a trailing slash leaving its window open.
 
 ## v0.6.0 - June 26th, 2026
 
