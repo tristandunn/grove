@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+#
+# Test stub for tput. Answers "cols" with TPUT_STUB_COLS (default 123) and
+# "lines" with TPUT_STUB_LINES (default 45). Fails when TPUT_STUB_FAIL is set.
+
+set -euo pipefail
+
+if [[ -n "${TPUT_STUB_FAIL:-}" ]]; then
+  exit 1
+fi
+
+case "${1:-}" in
+  cols)  echo "${TPUT_STUB_COLS:-123}" ;;
+  lines) echo "${TPUT_STUB_LINES:-45}" ;;
+  *)     exit 1 ;;
+esac

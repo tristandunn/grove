@@ -145,6 +145,32 @@ These variables are only exported to the shell pane.
 |---|---|---|
 | `GROVE_WORKSPACE_NAME` | `<branch>` | The branch name with `GROVE_PREFIX` stripped. |
 
+## Development
+
+The tests use [bats-core](https://github.com/bats-core/bats-core) with
+`bats-support` and `bats-assert`, vendored as git submodules. Fetch them once
+after cloning:
+
+```sh
+git submodule update --init --recursive
+```
+
+Then run the suite:
+
+```sh
+make test                        # Every file in the test/ directory.
+make test-rename                 # A single file, here the test/rename.bats file.
+make test BATS_FLAGS="--jobs 4"  # In parallel, but requires GNU parallel.
+```
+
+The tests never touch your home directory, repositories, or tmux server. `HOME`
+and the `GROVE_*` variables point into a per-test temporary directory, and every
+helper that runs grove fails if `HOME`, `GROVE_ROOT`, `GROVE_WORKTREES`, or
+`GIT_CONFIG_GLOBAL` points outside it. Each test builds real git repositories in
+that directory, and `tmux`, `fzf`, `less`, `sleep`, and `tput` are replaced by
+the stubs in `test/stubs/`. The `prompts.bats` tests need `script` from
+util-linux to provide a terminal.
+
 ## License
 
 Grove uses the MIT license. See [LICENSE](LICENSE) for more details.

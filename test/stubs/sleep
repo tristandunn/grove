@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+#
+# Test stub for sleep. Returns immediately. When SLEEP_STUB_LOG is set, the
+# requested durations are appended to that file.
+
+set -euo pipefail
+
+if [[ -n "${SLEEP_STUB_LOG:-}" ]]; then
+  printf '%s\n' "$*" >> "${SLEEP_STUB_LOG}"
+fi

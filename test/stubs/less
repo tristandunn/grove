@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+#
+# Test stub for less. Behaves like cat so pager output can be asserted on. When
+# LESS_STUB_LOG is set, the arguments are appended to that file.
+
+set -euo pipefail
+
+if [[ -n "${LESS_STUB_LOG:-}" ]]; then
+  printf '%s\n' "$*" >> "${LESS_STUB_LOG}"
+fi
+
+exec cat

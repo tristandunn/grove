@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+#
+# Test stub for tmux. Every call is appended to "${TMUX_STUB_DIR}/calls.log",
+# one line per call, with arguments that contain whitespace (or are empty)
+# wrapped in single quotes. Query answers come from fixture files in the same
+# directory, which tests write with the helpers in test_helper/common.bash:
+#
+#   has_session          exit code for has-session (default: 1, no session)
+#   client_width         answer for #{client_width} (default: 120)
+#   client_height        answer for #{client_height} (default: 40)
+#   pane_current_path    answer for display-message -p (default: $PWD)
+#   session_name         answer for #{session_name} (default: grove)
+#   window_index         answer for #{window_index} (default: 0)
+#   current_window       "<session> <window>" for list-panes without -a
+#   panes                one pane per line:
+#                        <session> <window> <left> <top> <active> <id> <path>
+#   pane_counter         last pane ID handed out (maintained by the stub)
+#
+# new-session, new-window and split-window print %1, %2, %3, ... when called
+# with -P.
+
+set -euo pipefail
+
+readonly STATE_DIR="${TMUX_STUB_DIR:?TMUX_STUB_DIR must be set}"
+
+log_call() {
+  local arg line=""
+
+  for arg in "$@"; do
+    if [[ -z "${arg}" || "${arg}" == *[[:space:]]* ]]; then
+      arg="'${arg}'"
+    fi
+
+    if [[ -z "${line}" ]]; then
+      line="${arg}"
+    else
+      line="${line} ${arg}"
+    fi
+  done
+
+  printf '%s\n' "${line}" >> "${STATE_DIR}/calls.log"
+}
+
+# Print a fixture file's contents, or the default when it does not exist.
+fixture() {
+  local -r name="$1"
+  local -r default="$2"
+
+  if [[ -f "${STATE_DIR}/${name}" ]]; then
+    cat "${STATE_DIR}/${name}"
+  else
+    printf '%s\n' "${default}"
+  fi
+}
+
+next_pane_id() {
+  local counter=0
+
+  if [[ -f "${STATE_DIR}/pane_counter" ]]; then
+    counter=$(< "${STATE_DIR}/pane_counter")
+  fi
+
+  counter=$((counter + 1))
+  printf '%s\n' "${counter}" > "${STATE_DIR}/pane_counter"
+  printf '%%%s\n' "${counter}"
+}
+
+# Answer display-message -p by expanding the format variables grove asks for.
+display_message() {
+  local output="${last_positional}"
+
+  local client_height client_width pane_path session_name window_index
+  client_width=$(fixture client_width 120)
+  client_height=$(fixture client_height 40)
+  pane_path=$(fixture pane_current_path "${PWD}")
+  session_name=$(fixture session_name grove)
+  window_index=$(fixture window_index 0)
+
+  output="${output//"#{client_width}"/"${client_width}"}"
+  output="${output//"#{client_height}"/"${client_height}"}"
+  output="${output//"#{pane_current_path}"/"${pane_path}"}"
+  output="${output//"#{session_name}"/"${session_name}"}"
+  output="${output//"#{window_index}"/"${window_index}"}"
+
+  printf '%s\n' "${output}"
+}
+
+# Render the panes fixture through the -F format. Without -a only the panes of
+# the current window are listed.
+list_panes() {
+  local current_window
+  current_window=$(fixture current_window "grove 0")
+
+  if [[ ! -f "${STATE_DIR}/panes" ]]; then
+    return
+  fi
+
+  # Collect everything and write once, like tmux does, so a reader that exits
+  # early (awk ... exit) cannot trigger SIGPIPE halfway through.
+  local active id left line path result="" session top window
+  while IFS=' ' read -r session window left top active id path; do
+    if [[ -z "${session}" ]]; then
+      continue
+    fi
+
+    if [[ "${all_flag}" != true && "${session} ${window}" != "${current_window}" ]]; then
+      continue
+    fi
+
+    line="${format:-#\{pane_id\}}"
+    line="${line//"#{session_name}"/"${session}"}"
+    line="${line//"#{window_index}"/"${window}"}"
+    line="${line//"#{pane_left}"/"${left}"}"
+    line="${line//"#{pane_top}"/"${top}"}"
+    line="${line//"#{pane_active}"/"${active}"}"
+    line="${line//"#{pane_id}"/"${id}"}"
+    line="${line//"#{pane_current_path}"/"${path}"}"
+    result="${result}${line}"$'\n'
+  done < "${STATE_DIR}/panes"
+
+  printf '%s' "${result}"
+}
+
+log_call "$@"
+
+if [[ $# -eq 0 ]]; then
+  echo "tmux stub: no command given" >&2
+  exit 1
+fi
+
+readonly SUBCOMMAND="$1"
+shift
+
+all_flag=false
+format=""
+last_positional=""
+print_flag=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -F) format="${2:-}"; shift ;;
+    -t) shift ;;
+    -P) print_flag=true ;;
+    -p) print_flag=true ;;
+    -a) all_flag=true ;;
+    -*) ;;
+    *)  last_positional="$1" ;;
+  esac
+
+  if [[ $# -gt 0 ]]; then
+    shift
+  fi
+done
+
+case "${SUBCOMMAND}" in
+  has-session)
+    exit "$(fixture has_session 1)"
+    ;;
+  display-message)
+    if [[ "${print_flag}" == true ]]; then
+      display_message
+    fi
+    ;;
+  list-panes)
+    list_panes
+    ;;
+  new-session|new-window|split-window)
+    if [[ "${print_flag}" == true ]]; then
+      next_pane_id
+    fi
+    ;;
+  send-keys|select-window|select-pane|rename-window|kill-window|switch-client|attach-session)
+    ;;
+  *)
+    echo "tmux stub: unsupported command: ${SUBCOMMAND}" >&2
+    exit 1
+    ;;
+esac

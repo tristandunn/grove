@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+#
+# Test stub for fzf. Records its arguments (one per line) to
+# "${FZF_STUB_DIR}/argv" and its standard input to "${FZF_STUB_DIR}/stdin",
+# then prints the "output" fixture and exits with the "rc" fixture (default 0).
+#
+# When the "kill_parent_after" fixture holds a number N, the Nth call also sends
+# SIGTERM to the calling process. This breaks out of grove's endless
+# file-watch loop.
+
+set -euo pipefail
+
+readonly STATE_DIR="${FZF_STUB_DIR:?FZF_STUB_DIR must be set}"
+
+printf '%s\n' "$@" > "${STATE_DIR}/argv"
+
+if [[ -t 0 ]]; then
+  : > "${STATE_DIR}/stdin"
+else
+  cat > "${STATE_DIR}/stdin"
+fi
+
+calls=0
+if [[ -f "${STATE_DIR}/calls" ]]; then
+  calls=$(< "${STATE_DIR}/calls")
+fi
+
+calls=$((calls + 1))
+printf '%s\n' "${calls}" > "${STATE_DIR}/calls"
+
+if [[ -f "${STATE_DIR}/output" ]]; then
+  cat "${STATE_DIR}/output"
+fi
+
+if [[ -f "${STATE_DIR}/kill_parent_after" ]]; then
+  limit=$(< "${STATE_DIR}/kill_parent_after")
+  if [[ "${calls}" -ge "${limit}" ]]; then
+    kill -TERM "${PPID}"
+  fi
+fi
+
+rc=0
+if [[ -f "${STATE_DIR}/rc" ]]; then
+  rc=$(< "${STATE_DIR}/rc")
+fi
+
+exit "${rc}"
