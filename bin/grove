@@ -598,14 +598,23 @@ cmd_rename() {
     error "New name produced an empty slug."
   fi
 
-  local -r new_id="${slug}"
-  local -r new_branch="${new_id}"
-  local worktrees_dir
-  worktrees_dir=$(dirname "${current_worktree}")
-  local -r new_worktree_path="${worktrees_dir}/${new_id}"
-
   local old_branch
   old_branch=$(git -C "${current_worktree}" rev-parse --abbrev-ref HEAD)
+
+  local -r new_id="${GROVE_PREFIX-grove/}${slug}"
+  local -r new_branch="${new_id}"
+
+  # Worktrees are created at "<worktrees dir>/<id>", so strip the old branch
+  # from the path to find the worktrees dir. Fall back to the parent directory
+  # for worktrees that were not created by grove.
+  local worktrees_dir
+  if [[ "${current_worktree}" == */"${old_branch}" ]]; then
+    worktrees_dir="${current_worktree%/"${old_branch}"}"
+  else
+    worktrees_dir=$(dirname "${current_worktree}")
+  fi
+
+  local -r new_worktree_path="${worktrees_dir}/${new_id}"
 
   git -C "${current_worktree}" branch -m "${old_branch}" "${new_branch}"
   git worktree move "${current_worktree}" "${new_worktree_path}"
@@ -622,7 +631,7 @@ cmd_rename() {
         done) || true
 
     if [[ -n "${win_target}" ]]; then
-      tmux rename-window -t "${win_target}" "${slug}"
+      tmux rename-window -t "${win_target}" "$(basename "${new_worktree_path}")"
     fi
   fi
 }
