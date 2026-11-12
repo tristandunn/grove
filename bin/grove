@@ -30,7 +30,7 @@ diff_status() {
     printf '\034staged\n'
     git diff -z --numstat --no-renames --cached 2>/dev/null | tr '\0' '\n' || true
     printf '\034status\n'
-    git status -z --short --no-renames --untracked-files=all | tr '\0' '\n'
+    git status -z --porcelain --no-renames --untracked-files=all | tr '\0' '\n'
   } | awk '
   # The awk script merges the three sections into display lines. Unstaged files
   # show normally while staged files are dimmed. Each file gets colored add and

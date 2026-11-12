@@ -334,6 +334,15 @@ make_conflict() {
   assert_equal "$(display README.md unstaged | strip_ansi | cut -c1-6)" "  UU  "
 }
 
+@test "file-watch --status: is not affected by color.ui=always" {
+  git config color.ui always
+  printf 'changed\n' > README.md
+
+  run_grove file-watch --status
+
+  assert_equal "$(display README.md unstaged)" "   M  README.md  ${ESC}[32m+1${ESC}[0m ${ESC}[31m-1${ESC}[0m"
+}
+
 # --- Awkward filenames -----------------------------------------------------------
 
 @test "file-watch --status: preserves names with spaces" {

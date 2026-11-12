@@ -20,6 +20,7 @@
 - Fix renaming a worktree leaving the branch renamed when the move fails.
 - Fix creating a worktree leaving a branch when the directory cannot be created.
 - Fix opening a worktree in the wrong tmux session.
+- Fix the file watcher when git is configured to always use color.
 
 ## v0.6.0 - June 26th, 2026
 
