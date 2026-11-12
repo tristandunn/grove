@@ -82,6 +82,18 @@ diff_status() {
   '
 }
 
+# Print the branch checked out in a worktree, or nothing when it is detached.
+# Unlike `rev-parse --abbrev-ref`, this is the plain branch name even when a tag
+# has the same name.
+current_branch() {
+  local -r working_dir="$1"
+
+  local ref
+  ref=$(git -C "${working_dir}" symbolic-ref -q HEAD 2>/dev/null || true)
+
+  printf '%s\n' "${ref#refs/heads/}"
+}
+
 # Derive the workspace name for a worktree, which is the branch name with the
 # GROVE_PREFIX stripped. Prints nothing when the path has no checked-out
 # branch.
@@ -90,9 +102,9 @@ workspace_name() {
   local -r prefix="${GROVE_PREFIX-grove-}"
 
   local name
-  name=$(git -C "${working_dir}" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+  name=$(current_branch "${working_dir}")
 
-  if [[ "${name}" == "HEAD" ]]; then
+  if [[ -z "${name}" ]]; then
     return
   fi
 
@@ -624,7 +636,7 @@ cmd_rename() {
   fi
 
   local old_branch
-  old_branch=$(git -C "${current_worktree}" rev-parse --abbrev-ref HEAD)
+  old_branch=$(current_branch "${current_worktree}")
 
   local -r new_id="${GROVE_PREFIX-grove-}${slug}"
   local -r new_branch="${new_id}"
@@ -645,7 +657,7 @@ cmd_rename() {
     error "Path already exists: ${new_worktree_path}"
   fi
 
-  if [[ "${old_branch}" == "HEAD" ]]; then
+  if [[ -z "${old_branch}" ]]; then
     error "Cannot rename a worktree with a detached HEAD."
   fi
 
@@ -779,7 +791,7 @@ cmd_rm() {
   local branch main_root
   if [[ -d "${current_worktree}" ]]; then
     main_root=$(git -C "${current_worktree}" worktree list --porcelain | head -1 | sed 's/^worktree //')
-    branch=$(git -C "${current_worktree}" rev-parse --abbrev-ref HEAD)
+    branch=$(current_branch "${current_worktree}")
   else
     local worktree_list
     worktree_list=$(git worktree list --porcelain)

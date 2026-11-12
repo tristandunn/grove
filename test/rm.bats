@@ -222,6 +222,15 @@ setup() {
   refute branch_exists "${REPO}" "feat/thing"
 }
 
+@test "rm: deletes the branch when a tag has the same name" {
+  git -C "${REPO}" tag grove-task
+
+  run_grove rm
+
+  assert_success
+  refute branch_exists "${REPO}" "grove-task"
+}
+
 @test "rm: a locked worktree is left in place without killing its tmux window" {
   enter_tmux
   git -C "${REPO}" worktree lock "${WORKTREE}"
