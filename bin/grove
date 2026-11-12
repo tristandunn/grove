@@ -334,10 +334,10 @@ cmd_new() {
 
 # Build the worktree list for the switcher. When invoked inside a grove-managed
 # project, lists only that project's non-main worktrees. Otherwise, scans every
-# project that has worktrees under ${GROVE_ROOT}/worktrees.
+# project that has worktrees under the worktrees directory.
 switch_entries() {
   local -r root_dir="${GROVE_ROOT:-${HOME}/Sites}"
-  local -r worktrees_root="${root_dir}/worktrees"
+  local -r worktrees_root="${GROVE_WORKTREES:-${root_dir}/worktrees}"
 
   # Resolve the current project so we can scope the list to it. The
   # git-common-dir result points at the main repository's .git even from
@@ -462,7 +462,7 @@ cmd_switch() {
   switch_entries > "${entries_file}"
 
   if [[ ! -s "${entries_file}" ]]; then
-    error "No worktrees found in ${GROVE_ROOT:-${HOME}/Sites}."
+    error "No worktrees found in ${GROVE_WORKTREES:-${GROVE_ROOT:-${HOME}/Sites}/worktrees}."
   fi
 
   local selected

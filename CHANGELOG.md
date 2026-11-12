@@ -4,6 +4,7 @@
 
 - Export `GROVE_WORKSPACE_NAME` into the shell pane.
 - Keep the `GROVE_PREFIX` when renaming worktrees.
+- Use `GROVE_WORKTREES` when listing worktrees in the switcher.
 
 ## v0.6.0 - June 26th, 2026
 
