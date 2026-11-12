@@ -485,6 +485,10 @@ cmd_switch() {
     --bind 'ctrl-d:execute(grove _delete-confirm {3})+reload(grove switch --list)' \
     < "${entries_file}") || exit 0
 
+  # The entries are no longer needed, and the exec when attaching outside tmux
+  # would skip the exit trap.
+  rm -f "${entries_file}"
+
   local project worktree_path
   project=$(echo "${selected}" | cut -sf2)
   worktree_path=$(echo "${selected}" | cut -sf3)

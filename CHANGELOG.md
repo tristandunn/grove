@@ -16,6 +16,7 @@
 - Fix the file watcher preview for staged deletions.
 - Fix the switcher in repository subdirectories and linked directories.
 - Fix the switcher failing when a project's repository was deleted.
+- Fix the switcher leaving a temporary file behind when attaching to tmux.
 
 ## v0.6.0 - June 26th, 2026
 

@@ -596,7 +596,6 @@ select_entry() {
 }
 
 @test "switch: removes its temporary file after opening a worktree outside tmux" {
-  skip "BUG: open_worktree ends with exec tmux attach-session outside tmux, which replaces the process before the EXIT trap can delete the temporary entries file."
   make_worktree "${REPO}" grove-a > /dev/null
   cd "${REPO}"
   mkdir "${TEST_TMP}/tmpdir"
