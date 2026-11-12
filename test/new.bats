@@ -271,7 +271,6 @@ setup() {
 }
 
 @test "new: an existing path does not leave a stray branch behind" {
-  skip "BUG: git worktree add creates the branch before it fails on the path, so the branch is left behind and a retry then fails with 'branch already exists'."
   mkdir -p "${GROVE_WORKTREES}/grove-taken"
 
   run_grove new taken

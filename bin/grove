@@ -321,6 +321,10 @@ cmd_new() {
   local -r worktree_path="${worktrees_dir}/${id}"
   local -r branch="${id}"
 
+  if [[ -e "${worktree_path}" ]]; then
+    error "Worktree path already exists: ${worktree_path}"
+  fi
+
   local default_branch
   default_branch=$(git -C "${main_root}" symbolic-ref --short HEAD)
 

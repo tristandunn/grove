@@ -9,6 +9,7 @@
 - Fix file watcher to stage names with spaces or quotes.
 - Fix renaming a worktree onto an existing directory.
 - Fix file watcher to show partially staged files in both sections.
+- Fix creating a worktree at an existing path leaving a branch.
 
 ## v0.6.0 - June 26th, 2026
 
