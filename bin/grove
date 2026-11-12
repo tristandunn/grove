@@ -618,6 +618,10 @@ cmd_rename() {
 
   local -r new_worktree_path="${worktrees_dir}/${new_id}"
 
+  if [[ -e "${new_worktree_path}" ]]; then
+    error "Path already exists: ${new_worktree_path}"
+  fi
+
   git -C "${current_worktree}" branch -m "${old_branch}" "${new_branch}"
   git worktree move "${current_worktree}" "${new_worktree_path}"
 
