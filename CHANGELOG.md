@@ -24,6 +24,7 @@
 - Fix removing a worktree whose branch shares its name with a tag.
 - Fix commands failing silently with many worktrees.
 - Fix running scripts from paths with spaces.
+- Fix creating a worktree while the main checkout has a detached HEAD.
 
 ## v0.6.0 - June 26th, 2026
 

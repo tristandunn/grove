@@ -350,8 +350,18 @@ cmd_new() {
     error "Worktree path already exists: ${worktree_path}"
   fi
 
-  local default_branch
-  default_branch=$(git -C "${main_root}" symbolic-ref --short HEAD)
+  if ! git -C "${main_root}" rev-parse --verify --quiet HEAD &>/dev/null; then
+    error "Repository has no commits."
+  fi
+
+  # Start from the branch the main checkout is on, so the new branch tracks it
+  # when git is configured to. While HEAD is detached, such as during a rebase,
+  # there is no branch, so start from the commit instead.
+  local start_point
+  start_point=$(git -C "${main_root}" symbolic-ref -q --short HEAD || true)
+  if [[ -z "${start_point}" ]]; then
+    start_point=$(git -C "${main_root}" rev-parse HEAD)
+  fi
 
   local branch_existed=false
   if git show-ref --verify --quiet "refs/heads/${branch}"; then
@@ -360,7 +370,7 @@ cmd_new() {
 
   # Git creates the branch before the directory, so a failure while creating the
   # directory leaves the branch behind. Remove it, unless it was already there.
-  if ! git worktree add "${worktree_path}" -b "${branch}" "${default_branch}" >/dev/null; then
+  if ! git worktree add "${worktree_path}" -b "${branch}" "${start_point}" >/dev/null; then
     if [[ "${branch_existed}" == false ]]; then
       git branch -D "${branch}" >/dev/null 2>&1 || true
     fi

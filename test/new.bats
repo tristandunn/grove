@@ -301,16 +301,6 @@ setup() {
   refute_tmux_called "display-message"
 }
 
-@test "new: a detached HEAD in the main worktree fails without creating anything" {
-  git checkout --quiet --detach
-
-  run_grove new thing
-
-  assert_failure
-  assert [ ! -e "${GROVE_WORKTREES}/grove-thing" ]
-  refute_any_tmux_call
-}
-
 @test "new: a repository with no commits fails without creating anything" {
   local -r fresh="${TEST_TMP}/fresh"
   git init --quiet "${fresh}"
@@ -319,7 +309,7 @@ setup() {
   run_grove new thing
 
   assert_failure
-  assert_stderr --partial "fatal"
+  assert_stderr "Error: Repository has no commits."
   assert [ ! -e "${GROVE_WORKTREES}" ]
   refute_any_tmux_call
 }
@@ -629,6 +619,24 @@ setup() {
 
 @test "new: works in a repository with many worktrees" {
   add_many_worktrees "${REPO}"
+
+  run_grove new thing
+
+  assert_success
+  assert [ -d "${GROVE_WORKTREES}/grove-thing" ]
+}
+
+@test "new: the new branch tracks the main branch when git is set to" {
+  git config branch.autoSetupMerge always
+
+  run_grove new thing
+
+  assert_success
+  assert_equal "$(git config branch.grove-thing.merge)" "refs/heads/main"
+}
+
+@test "new: works while the main worktree has a detached HEAD" {
+  git -C "${REPO}" checkout --quiet --detach
 
   run_grove new thing
 
