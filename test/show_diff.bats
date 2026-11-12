@@ -140,22 +140,12 @@ make_partially_staged_file() {
 }
 
 @test "show-diff: a staged deletion shows its removal" {
-  skip "BUG: after git rm the file is neither on disk nor in the index, so the early 'not tracked and not present' exit hides the diff for staged deletions."
   git rm --quiet README.md
 
   run_grove show-diff README.md staged
 
   assert_success
   assert_output --partial "deleted file mode"
-}
-
-@test "show-diff: a staged deletion currently prints nothing" {
-  git rm --quiet README.md
-
-  run_grove show-diff README.md staged
-
-  assert_success
-  assert_output ""
 }
 
 @test "show-diff: an unchanged tracked file prints nothing" {

@@ -185,7 +185,9 @@ cmd_show_diff() {
     tracked=true
   fi
 
-  if [[ ! -e "${file}" ]] && [[ "${tracked}" == false ]]; then
+  # A staged deletion is gone from both the disk and the index, but still has a
+  # diff against HEAD.
+  if [[ "${section}" != "staged" ]] && [[ ! -e "${file}" ]] && [[ "${tracked}" == false ]]; then
     exit 0
   fi
 

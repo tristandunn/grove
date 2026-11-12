@@ -13,6 +13,7 @@
 - Fix renaming a worktree by path from outside a repository.
 - Fix removing a worktree whose directory is already gone.
 - Fix removing a locked worktree reporting success.
+- Fix the file watcher preview for staged deletions.
 
 ## v0.6.0 - June 26th, 2026
 
