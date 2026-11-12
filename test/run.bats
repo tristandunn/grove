@@ -75,6 +75,24 @@ setup() {
   assert_output "run.sh"
 }
 
+@test "run: runs run.sh when the worktree path has a space" {
+  local spaced
+  spaced=$(make_worktree "${REPO}" grove-spaced "${TEST_TMP}/my worktrees/grove-spaced")
+  write_grove_script "${spaced}" run.sh 755
+  tmux_fixture pane_current_path "${spaced}"
+  : > "${TMUX_STUB_DIR}/panes"
+  tmux_add_pane grove 0 0 0 1 %1 "${spaced}"
+  tmux_add_pane grove 0 50 0 0 %2 "${spaced}"
+  tmux_add_pane grove 0 50 25 0 %3 "${spaced}"
+  cd "${spaced}"
+
+  run_grove run
+
+  assert_success
+  run bash -c "$(tmux_sent_keys %3)"
+  assert_output "run.sh"
+}
+
 @test "run: picks the pane with the highest top among panes right of the leftmost column" {
   write_grove_script "${WORKTREE}" run.sh 755
   tmux_add_pane grove 0 50 40 0 %4 "${WORKTREE}"

@@ -297,7 +297,7 @@ open_worktree() {
     setup_script=$(resolve_grove_script "${working_dir}" "setup.sh")
     if [[ -n "${setup_script}" ]]; then
       if [[ -x "${setup_script}" ]]; then
-        tmux send-keys -t "${pane_shell}" "${setup_script}" Enter
+        tmux send-keys -t "${pane_shell}" "$(printf '%q' "${setup_script}")" Enter
       else
         tmux display-message -d 3000 "grove: .grove/setup.sh is not executable."
       fi
@@ -757,7 +757,7 @@ cmd_run() {
     error "No shell pane found."
   fi
 
-  tmux send-keys -t "${shell_pane}" "${run_script}" Enter
+  tmux send-keys -t "${shell_pane}" "$(printf '%q' "${run_script}")" Enter
 }
 
 # Remove a worktree, its branch, and the tmux window that contains it. Can

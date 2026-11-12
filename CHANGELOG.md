@@ -23,6 +23,7 @@
 - Fix the file watcher when git is configured to always use color.
 - Fix removing a worktree whose branch shares its name with a tag.
 - Fix commands failing silently with many worktrees.
+- Fix running scripts from paths with spaces.
 
 ## v0.6.0 - June 26th, 2026
 

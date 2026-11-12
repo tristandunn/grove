@@ -536,6 +536,17 @@ setup() {
   assert_tmux_call_exact "send-keys -t %3 ${GROVE_WORKTREES}/grove-thing/.grove/setup.sh Enter"
 }
 
+@test "new: runs setup.sh when the worktree path has a space" {
+  export GROVE_WORKTREES="${TEST_TMP}/my worktrees"
+  commit_grove_script "${REPO}" setup.sh 755
+
+  run_grove new thing
+
+  assert_success
+  run bash -c "$(tmux_sent_keys %3)"
+  assert_output "setup.sh"
+}
+
 @test "new: warns when the worktree's setup.sh is not executable" {
   commit_grove_script "${REPO}" setup.sh 644
 
