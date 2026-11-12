@@ -625,7 +625,7 @@ cmd_rename() {
   fi
 
   git -C "${current_worktree}" branch -m "${old_branch}" "${new_branch}"
-  git worktree move "${current_worktree}" "${new_worktree_path}"
+  git -C "${current_worktree}" worktree move "${current_worktree}" "${new_worktree_path}"
 
   # Rename the tmux window if one is open for this worktree.
   if [[ -n "${TMUX:-}" ]]; then

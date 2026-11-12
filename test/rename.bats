@@ -133,7 +133,6 @@ setup() {
 }
 
 @test "rename: --path from outside any repository leaves branch and directory consistent" {
-  skip "BUG: git worktree move runs without -C, so it fails outside a repository after git branch -m already renamed the branch, leaving the branch and directory out of sync."
   cd "${TEST_TMP}"
 
   run_grove rename --path "${WORKTREE}" via path
