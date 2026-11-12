@@ -345,6 +345,17 @@ setup() {
   refute_any_tmux_call
 }
 
+@test "new: a failed worktree creation leaves no branch behind" {
+  printf 'file' > "${TEST_TMP}/blocked"
+  export GROVE_WORKTREES="${TEST_TMP}/blocked"
+
+  run_grove new thing
+
+  assert_failure
+  refute branch_exists "${REPO}" "grove-thing"
+  refute_any_tmux_call
+}
+
 # --- tmux --------------------------------------------------------------------
 
 @test "new: creates a detached session when none exists" {

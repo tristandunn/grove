@@ -330,7 +330,20 @@ cmd_new() {
   local default_branch
   default_branch=$(git -C "${main_root}" symbolic-ref --short HEAD)
 
-  git worktree add "${worktree_path}" -b "${branch}" "${default_branch}" >/dev/null
+  local branch_existed=false
+  if git show-ref --verify --quiet "refs/heads/${branch}"; then
+    branch_existed=true
+  fi
+
+  # Git creates the branch before the directory, so a failure while creating the
+  # directory leaves the branch behind. Remove it, unless it was already there.
+  if ! git worktree add "${worktree_path}" -b "${branch}" "${default_branch}" >/dev/null; then
+    if [[ "${branch_existed}" == false ]]; then
+      git branch -D "${branch}" >/dev/null 2>&1 || true
+    fi
+
+    exit 1
+  fi
 
   # The session names cannot contain dots or colons.
   local -r session="${project_name//[.:]/_}"
