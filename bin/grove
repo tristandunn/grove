@@ -380,7 +380,7 @@ switch_entries() {
     done
   fi
 
-  local branch project ref worktree_path
+  local branch line project ref repo worktree_path
   for repo in "${repos[@]}"; do
     if [[ ! -e "${repo}/.git" ]]; then
       continue
@@ -600,7 +600,8 @@ cmd_rename() {
 
   local -r new_id="${slug}"
   local -r new_branch="${new_id}"
-  local -r worktrees_dir=$(dirname "${current_worktree}")
+  local worktrees_dir
+  worktrees_dir=$(dirname "${current_worktree}")
   local -r new_worktree_path="${worktrees_dir}/${new_id}"
 
   local old_branch
