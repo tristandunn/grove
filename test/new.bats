@@ -362,7 +362,7 @@ setup() {
   run_grove new thing
 
   assert_success
-  assert_tmux_call_exact "has-session -t project"
+  assert_tmux_call_exact "has-session -t =project"
   assert_tmux_call_exact "new-session -d -s project -n grove-thing -c ${GROVE_WORKTREES}/grove-thing -x 120 -y 40 -P -F #{pane_id}"
   refute_tmux_called "new-window"
 }
@@ -373,7 +373,7 @@ setup() {
   run_grove new thing
 
   assert_success
-  assert_tmux_call_exact "new-window -a -t project -n grove-thing -c ${GROVE_WORKTREES}/grove-thing -P -F #{pane_id}"
+  assert_tmux_call_exact "new-window -a -t =project: -n grove-thing -c ${GROVE_WORKTREES}/grove-thing -P -F #{pane_id}"
   refute_tmux_called "new-session"
 }
 
@@ -385,7 +385,7 @@ setup() {
   run_grove new thing
 
   assert_success
-  assert_tmux_called "has-session -t my_proj_v2"
+  assert_tmux_called "has-session -t =my_proj_v2"
   assert_tmux_called "new-session -d -s my_proj_v2 -n grove-thing"
 }
 
@@ -397,7 +397,7 @@ setup() {
   run_grove new second
 
   assert_success
-  assert_tmux_called "has-session -t project"
+  assert_tmux_called "has-session -t =project"
   assert_tmux_called "new-session -d -s project -n grove-second"
   refute_tmux_called "grove-other"
 }
@@ -485,6 +485,16 @@ setup() {
   refute_tmux_called "new-session"
 }
 
+@test "new: a session whose name only starts with the project's name is not reused" {
+  tmux_add_session "project-docs"
+
+  run_grove new thing
+
+  assert_success
+  assert_tmux_called "new-session -d -s project -n grove-thing"
+  refute_tmux_called "new-window"
+}
+
 @test "new: keeps paths and the session name with spaces intact" {
   local repo
   repo=$(make_repo "my project")
@@ -503,7 +513,7 @@ setup() {
   run_grove new thing
 
   assert_success
-  assert_tmux_call_exact "attach-session -t project"
+  assert_tmux_call_exact "attach-session -t =project"
 }
 
 @test "new: inside tmux, does not attach" {

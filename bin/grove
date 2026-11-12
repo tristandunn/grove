@@ -243,9 +243,11 @@ open_worktree() {
   local -r continue_flag="${4:-}"
   local -r run_setup="${5:-}"
 
+  # The "=" asks tmux for an exact match, because it otherwise accepts a session
+  # whose name only starts with the project name.
   local pane_left
-  if tmux has-session -t "${session}" 2>/dev/null; then
-    pane_left=$(tmux new-window -a -t "${session}" -n "${window_name}" -c "${working_dir}" -P -F '#{pane_id}')
+  if tmux has-session -t "=${session}" 2>/dev/null; then
+    pane_left=$(tmux new-window -a -t "=${session}:" -n "${window_name}" -c "${working_dir}" -P -F '#{pane_id}')
   else
     local height width
     width=$(tmux display-message -p '#{client_width}' 2>/dev/null || true)
@@ -282,7 +284,7 @@ open_worktree() {
   fi
 
   if [[ -z "${TMUX:-}" ]]; then
-    exec tmux attach-session -t "${session}"
+    exec tmux attach-session -t "=${session}"
   fi
 }
 

@@ -746,7 +746,7 @@ select_entry() {
   run_grove switch
 
   assert_success
-  assert_tmux_call_exact "has-session -t project"
+  assert_tmux_call_exact "has-session -t =project"
   assert_tmux_call_exact "new-session -d -s project -n grove-a -c ${worktree} -x 120 -y 40 -P -F #{pane_id}"
   assert_tmux_call_exact "send-keys -t %1 'claude --continue' Enter"
   assert_tmux_call_exact "send-keys -t %2 'grove file-watch' Enter"
@@ -763,7 +763,7 @@ select_entry() {
   run_grove switch
 
   assert_success
-  assert_tmux_call_exact "new-window -a -t project -n grove-a -c ${worktree} -P -F #{pane_id}"
+  assert_tmux_call_exact "new-window -a -t =project: -n grove-a -c ${worktree} -P -F #{pane_id}"
   refute_tmux_called "new-session"
 }
 
@@ -797,7 +797,7 @@ select_entry() {
 
   run_grove switch
 
-  assert_tmux_call_exact "attach-session -t project"
+  assert_tmux_call_exact "attach-session -t =project"
 }
 
 @test "switch: inside tmux, does not attach" {
@@ -841,6 +841,19 @@ select_entry() {
   refute_tmux_called "new-session"
 }
 
+@test "switch: a session whose name only starts with the project's name is not reused" {
+  make_worktree "${REPO}" grove-a > /dev/null
+  cd "${REPO}"
+  select_entry a
+  tmux_add_session "project-docs"
+
+  run_grove switch
+
+  assert_success
+  assert_tmux_called "new-session -d -s project -n grove-a"
+  refute_tmux_called "new-window"
+}
+
 @test "switch: the session name comes from the project selected outside a repository" {
   local alpha
   alpha=$(make_repo "my.alpha:one")
@@ -850,7 +863,7 @@ select_entry() {
 
   run_grove switch
 
-  assert_tmux_called "has-session -t my_alpha_one"
+  assert_tmux_called "has-session -t =my_alpha_one"
   assert_tmux_called "new-session -d -s my_alpha_one -n grove-a"
 }
 
