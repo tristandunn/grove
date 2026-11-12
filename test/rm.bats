@@ -198,14 +198,16 @@ setup() {
 }
 
 @test "rm: a locked worktree is left in place without killing its tmux window" {
-  skip "BUG: git worktree remove refuses locked worktrees and the error is swallowed, so grove reports success, keeps the worktree and branch, but still kills the tmux window."
   enter_tmux
   git -C "${REPO}" worktree lock "${WORKTREE}"
   tmux_add_pane grove 2 0 0 1 %5 "${WORKTREE}"
 
   run_grove rm --path "${WORKTREE}"
 
+  assert_failure
+  assert_tmux_called "cannot remove a locked working tree"
   assert [ -d "${WORKTREE}" ]
+  assert branch_exists "${REPO}" "grove-task"
   refute_tmux_called "kill-window"
 }
 

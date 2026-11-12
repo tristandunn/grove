@@ -777,7 +777,15 @@ cmd_rm() {
 
   # Move to the main repository first before deleting the worktree.
   cd "${main_root}" || true
-  git worktree remove "${current_worktree}" --force >/dev/null 2>&1 || true
+  local remove_output
+  if ! remove_output=$(git worktree remove "${current_worktree}" --force 2>&1); then
+    # A missing directory is a stale entry, which the prune below cleans up.
+    # Anything else, such as a locked worktree, is left alone.
+    if [[ -d "${current_worktree}" ]]; then
+      error "${remove_output}"
+    fi
+  fi
+
   if [[ ! -d "${current_worktree}" ]]; then
     git worktree prune >/dev/null 2>&1 || true
   fi
