@@ -376,7 +376,7 @@ switch_entries() {
       if [[ ! -e "${worktree_dir}.git" ]]; then
         continue
       fi
-      proj_main=$(git -C "${worktree_dir}" worktree list --porcelain 2>/dev/null | head -1 | sed 's/^worktree //')
+      proj_main=$(git -C "${worktree_dir}" worktree list --porcelain 2>/dev/null | head -1 | sed 's/^worktree //' || true)
       if [[ -n "${proj_main}" && -z "${seen[${proj_main}]:-}" ]]; then
         seen[${proj_main}]=1
         repos+=("${proj_main}")

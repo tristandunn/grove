@@ -373,7 +373,6 @@ select_entry() {
 }
 
 @test "switch --list: skips worktrees whose main repository is gone" {
-  skip "BUG: git worktree list fails for a worktree whose main repository was deleted, and set -e/pipefail aborts the whole listing (status 128) instead of skipping it."
   local alpha beta
   alpha=$(make_repo alpha)
   beta=$(make_repo beta)
