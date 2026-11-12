@@ -91,6 +91,22 @@ main_worktree_root() {
   printf '%s\n' "${worktree_list%%$'\n'*}" | sed 's/^worktree //'
 }
 
+# Print the target of the first tmux window with a pane inside a worktree.
+# Matching on path prefix handles panes that have cd'd into subdirectories. The
+# fields are split on a tab, as session names and paths can contain spaces.
+window_for_path() {
+  local -r worktree_path="$1"
+
+  local pane_path win_id
+  tmux list-panes -a -F $'#{session_name}:#{window_index}\t#{pane_current_path}' 2>/dev/null \
+    | while IFS=$'\t' read -r win_id pane_path; do
+        if [[ "${pane_path}" == "${worktree_path}" || "${pane_path}" == "${worktree_path}"/* ]]; then
+          echo "${win_id}"
+          break
+        fi
+      done || true
+}
+
 # Print the branch checked out in a worktree, or nothing when it is detached.
 # Unlike `rev-parse --abbrev-ref`, this is the plain branch name even when a tag
 # has the same name.
@@ -551,13 +567,7 @@ cmd_switch() {
   # Check if any tmux window already has a pane inside this worktree. Matching
   # on path prefix handles panes that have cd'd into subdirectories.
   local existing_target
-  existing_target=$(tmux list-panes -a -F '#{session_name}:#{window_index} #{pane_current_path}' 2>/dev/null \
-    | while IFS=' ' read -r win_id pane_path; do
-        if [[ "${pane_path}" == "${worktree_path}" || "${pane_path}" == "${worktree_path}"/* ]]; then
-          echo "${win_id}"
-          break
-        fi
-      done) || true
+  existing_target=$(window_for_path "${worktree_path}")
 
   if [[ -n "${existing_target}" ]]; then
     if [[ -n "${TMUX:-}" ]]; then
@@ -694,13 +704,7 @@ cmd_rename() {
   # Rename the tmux window if one is open for this worktree.
   if [[ -n "${TMUX:-}" ]]; then
     local win_target
-    win_target=$(tmux list-panes -a -F '#{session_name}:#{window_index} #{pane_current_path}' 2>/dev/null \
-      | while IFS=' ' read -r win_id pane_path; do
-          if [[ "${pane_path}" == "${new_worktree_path}" || "${pane_path}" == "${new_worktree_path}"/* ]]; then
-            echo "${win_id}"
-            break
-          fi
-        done) || true
+    win_target=$(window_for_path "${new_worktree_path}")
 
     if [[ -n "${win_target}" ]]; then
       tmux rename-window -t "${win_target}" "$(basename "${new_worktree_path}")"
@@ -830,13 +834,7 @@ cmd_rm() {
   # after removing the worktree.
   local win_target=""
   if [[ -n "${TMUX:-}" ]]; then
-    win_target=$(tmux list-panes -a -F '#{session_name}:#{window_index} #{pane_current_path}' 2>/dev/null \
-      | while IFS=' ' read -r win_id pane_path; do
-          if [[ "${pane_path}" == "${current_worktree}" || "${pane_path}" == "${current_worktree}"/* ]]; then
-            echo "${win_id}"
-            break
-          fi
-        done) || true
+    win_target=$(window_for_path "${current_worktree}")
   fi
 
   # Move to the main repository first before deleting the worktree.

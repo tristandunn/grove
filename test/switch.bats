@@ -678,6 +678,21 @@ select_entry() {
   refute_tmux_called "new-window"
 }
 
+@test "switch: focuses the open window when the session name has a space" {
+  enter_tmux
+  local worktree
+  worktree=$(make_worktree "${REPO}" grove-a)
+  cd "${REPO}"
+  select_entry a
+  tmux_add_pane "my project" 2 0 0 1 %5 "${worktree}"
+
+  run_grove switch
+
+  assert_success
+  assert_tmux_call_exact "switch-client -t 'my project:2'"
+  refute_tmux_called "new-window"
+}
+
 @test "switch: matches a pane in a subdirectory of the worktree" {
   enter_tmux
   local worktree

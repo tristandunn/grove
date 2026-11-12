@@ -265,6 +265,16 @@ setup() {
   assert_tmux_call_exact "kill-window -t grove:2"
 }
 
+@test "rm: kills the window when the session name has a space" {
+  enter_tmux
+  tmux_add_pane "my project" 2 0 0 1 %5 "${WORKTREE}"
+
+  run_grove rm
+
+  assert_success
+  assert_tmux_call_exact "kill-window -t 'my project:2'"
+}
+
 @test "rm: kills a window whose pane is in a subdirectory of the worktree" {
   enter_tmux
   tmux_fixture pane_current_path "${WORKTREE}"

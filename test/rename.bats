@@ -321,6 +321,16 @@ setup() {
   assert_tmux_call_exact "rename-window -t grove:2 grove-thing"
 }
 
+@test "rename: renames the window when the session name has a space" {
+  enter_tmux
+  tmux_add_pane "my project" 2 0 0 1 %5 "${GROVE_WORKTREES}/grove-thing"
+
+  run_grove rename thing
+
+  assert_success
+  assert_tmux_call_exact "rename-window -t 'my project:2' grove-thing"
+}
+
 @test "rename: matches a pane in a subdirectory of the new path" {
   enter_tmux
   tmux_add_pane grove 4 0 0 1 %5 "${GROVE_WORKTREES}/grove-thing/sub/dir"
