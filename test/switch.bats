@@ -148,7 +148,6 @@ select_entry() {
 }
 
 @test "switch --list: works from a subdirectory of the main repository" {
-  skip "BUG: from a subdirectory of the main repository git reports a relative ../.git, so the project name becomes '..' and the main worktree is listed as an entry."
   make_worktree "${REPO}" grove-a > /dev/null
   mkdir -p "${REPO}/sub"
   cd "${REPO}/sub"
@@ -160,7 +159,6 @@ select_entry() {
 }
 
 @test "switch --list: a project reached through a symlink does not list its main worktree" {
-  skip "BUG: the main worktree is compared by path as typed, so through a symlinked directory it differs from git's resolved path and is listed as an entry."
   make_worktree "${REPO}" grove-a > /dev/null
   ln -s "${TEST_TMP}/src" "${TEST_TMP}/link"
   cd "${TEST_TMP}/link/project"

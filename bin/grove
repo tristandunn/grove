@@ -347,16 +347,14 @@ switch_entries() {
 
   # Resolve the current project so we can scope the list to it. The
   # git-common-dir result points at the main repository's .git even from
-  # inside a worktree.
+  # inside a worktree. An absolute path is requested because git reports a
+  # relative one from a subdirectory, and it is resolved through symlinks so it
+  # matches the paths in the worktree list.
   local current_project="" main_root=""
   local git_common_dir
-  git_common_dir=$(git rev-parse --git-common-dir 2>/dev/null || true)
+  git_common_dir=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)
 
   if [[ -n "${git_common_dir}" ]]; then
-    if [[ "${git_common_dir}" != /* ]]; then
-      git_common_dir="${PWD}/${git_common_dir}"
-    fi
-
     main_root=$(dirname "${git_common_dir}")
     current_project=$(basename "${main_root}")
   fi

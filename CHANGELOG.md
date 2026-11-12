@@ -14,6 +14,7 @@
 - Fix removing a worktree whose directory is already gone.
 - Fix removing a locked worktree reporting success.
 - Fix the file watcher preview for staged deletions.
+- Fix the switcher in repository subdirectories and linked directories.
 
 ## v0.6.0 - June 26th, 2026
 
