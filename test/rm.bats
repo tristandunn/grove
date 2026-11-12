@@ -87,6 +87,18 @@ setup() {
   assert [ -d "${REPO}/.git" ]
 }
 
+@test "rm: refuses the main worktree from one of its subdirectories" {
+  mkdir "${REPO}/sub"
+  cd "${REPO}/sub"
+
+  run_grove rm
+
+  assert_failure 1
+  assert_stderr "Error: Cannot remove the main worktree. Run this from inside a task worktree."
+  assert [ -d "${REPO}/.git" ]
+  assert branch_exists "${REPO}" "main"
+}
+
 @test "rm: outside a git repository errors" {
   cd "${TEST_TMP}"
 
@@ -195,6 +207,19 @@ setup() {
   assert_success
   assert [ ! -e "${custom}" ]
   refute branch_exists "${REPO}" "feature"
+}
+
+@test "rm: a worktree in a nested directory is removed along with its branch containing a slash" {
+  local -r nested="${GROVE_WORKTREES}/feat/thing"
+  git -C "${REPO}" worktree add --quiet "${nested}" -b feat/thing
+  cd "${nested}"
+
+  run_grove rm
+
+  assert_success
+  assert [ ! -e "${nested}" ]
+  refute worktree_registered "${REPO}" "${nested}"
+  refute branch_exists "${REPO}" "feat/thing"
 }
 
 @test "rm: a locked worktree is left in place without killing its tmux window" {
@@ -338,4 +363,17 @@ setup() {
   assert_success
   assert_tmux_call_exact "kill-window -t grove:2"
   refute_tmux_called "display-message -p"
+}
+
+@test "rm: --path with a stale entry kills the window that was left open" {
+  enter_tmux
+  tmux_add_pane grove 2 0 0 1 %5 "${WORKTREE}"
+  rm -rf "${WORKTREE}"
+  cd "${REPO}"
+
+  run_grove rm --path "${WORKTREE}"
+
+  assert_success
+  refute worktree_registered "${REPO}" "${WORKTREE}"
+  assert_tmux_call_exact "kill-window -t grove:2"
 }

@@ -311,6 +311,40 @@ setup() {
   refute_any_tmux_call
 }
 
+@test "new: a repository with no commits fails without creating anything" {
+  local -r fresh="${TEST_TMP}/fresh"
+  git init --quiet "${fresh}"
+  cd "${fresh}"
+
+  run_grove new thing
+
+  assert_failure
+  assert_stderr --partial "fatal"
+  assert [ ! -e "${GROVE_WORKTREES}" ]
+  refute_any_tmux_call
+}
+
+@test "new: a task name too long for a file name fails without creating anything" {
+  local name
+  name=$(printf 'word%.0s ' {1..80})
+
+  run_grove new "${name}"
+
+  assert_failure
+  assert_equal "$(git branch --list 'grove-*')" ""
+  assert [ ! -e "${GROVE_WORKTREES}" ]
+  refute_any_tmux_call
+}
+
+@test "new: a GROVE_PREFIX that makes an invalid branch name fails without creating anything" {
+  GROVE_PREFIX="bad..prefix-" run_grove new thing
+
+  assert_failure
+  assert_stderr --partial "bad..prefix-thing"
+  assert [ ! -e "${GROVE_WORKTREES}" ]
+  refute_any_tmux_call
+}
+
 # --- tmux --------------------------------------------------------------------
 
 @test "new: creates a detached session when none exists" {
@@ -429,6 +463,31 @@ setup() {
   assert_tmux_call_exact "send-keys -t %1 codex Enter"
 }
 
+@test "new: reuses the session with exactly the project's name" {
+  tmux_add_session "project"
+  tmux_add_session "project-docs"
+
+  run_grove new thing
+
+  assert_success
+  assert_tmux_called "new-window"
+  refute_tmux_called "new-session"
+}
+
+@test "new: keeps paths and the session name with spaces intact" {
+  local repo
+  repo=$(make_repo "my project")
+  cd "${repo}"
+  export GROVE_WORKTREES="${TEST_TMP}/my worktrees"
+
+  run_grove new thing
+
+  assert_success
+  assert [ -d "${GROVE_WORKTREES}/grove-thing" ]
+  assert_tmux_call_exact "new-session -d -s 'my project' -n grove-thing -c '${GROVE_WORKTREES}/grove-thing' -x 120 -y 40 -P -F #{pane_id}"
+  assert_tmux_called "split-window -t %1 -h -l 45% -c '${GROVE_WORKTREES}/grove-thing'"
+}
+
 @test "new: outside tmux, attaches to the session" {
   run_grove new thing
 
@@ -524,4 +583,14 @@ setup() {
 
   assert_equal "$(tmux_call_count "send-keys -t %1 ")" "1"
   assert_equal "$(tmux_call_count "setup.sh Enter")" "1"
+}
+
+@test "new: the command sent for setup.sh runs the script" {
+  commit_grove_script "${REPO}" setup.sh 755
+
+  run_grove new thing
+
+  assert_success
+  run bash -c "$(tmux_sent_keys %3)"
+  assert_output "setup.sh"
 }

@@ -65,6 +65,16 @@ setup() {
   assert_tmux_call_exact "send-keys -t %3 ${WORKTREE}/.grove/run.sh Enter"
 }
 
+@test "run: the command sent to the shell pane runs the script" {
+  write_grove_script "${WORKTREE}" run.sh 755
+
+  run_grove run
+
+  assert_success
+  run bash -c "$(tmux_sent_keys %3)"
+  assert_output "run.sh"
+}
+
 @test "run: picks the pane with the highest top among panes right of the leftmost column" {
   write_grove_script "${WORKTREE}" run.sh 755
   tmux_add_pane grove 0 50 40 0 %4 "${WORKTREE}"

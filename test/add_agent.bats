@@ -42,6 +42,14 @@ setup() {
   assert_tmux_call_exact "send-keys -t %11 'codex --yolo' Enter"
 }
 
+@test "add-agent: an empty GROVE_AGENT falls back to claude" {
+  tmux_add_pane grove 0 0 0 1 %1 "${WORKTREE}"
+
+  GROVE_AGENT="" run_grove add-agent
+
+  assert_tmux_call_exact "send-keys -t %11 claude Enter"
+}
+
 @test "add-agent: does not add --continue" {
   tmux_add_pane grove 0 0 0 1 %1 "${WORKTREE}"
 

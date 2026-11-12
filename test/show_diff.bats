@@ -191,3 +191,37 @@ make_partially_staged_file() {
 
   refute_output --partial "other"
 }
+
+@test "show-diff: staged files in a repository with no commits are diffed against nothing" {
+  local -r fresh="${TEST_TMP}/fresh"
+  git init --quiet "${fresh}"
+  cd "${fresh}"
+  printf 'first\n' > first.txt
+  git add first.txt
+
+  run_grove show-diff first.txt staged
+
+  assert_success
+  assert_output --partial "new file mode"
+  assert_output --partial "first"
+}
+
+@test "show-diff: untracked files whose name starts with a dash work" {
+  printf 'dashed\n' > -dash.txt
+
+  run_grove show-diff -dash.txt
+
+  assert_success
+  assert_output --partial "dashed"
+}
+
+@test "show-diff: tracked files whose name starts with a dash work" {
+  printf 'one\n' > -dash.txt
+  git add -- -dash.txt && git commit --quiet -m "Add dash."
+  printf 'two\n' >> -dash.txt
+
+  run_grove show-diff -dash.txt
+
+  assert_success
+  assert_output --partial "two"
+}

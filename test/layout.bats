@@ -69,6 +69,12 @@ setup() {
   assert_tmux_call_exact "send-keys -t %1 'codex --fast' Enter"
 }
 
+@test "layout: an empty GROVE_AGENT falls back to claude" {
+  GROVE_AGENT="" run_grove layout %1 "${WORKTREE}" --continue
+
+  assert_tmux_call_exact "send-keys -t %1 'claude --continue' Enter"
+}
+
 @test "layout: --continue appends --continue to the default agent" {
   run_grove layout %1 "${WORKTREE}" --continue
 

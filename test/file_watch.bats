@@ -162,6 +162,36 @@ display() {
   assert [ "${short}" -gt 0 ]
 }
 
+@test "file-watch --status: a file with only a mode change has no counts" {
+  chmod +x README.md
+
+  run_grove file-watch --status
+
+  assert_equal "$(display README.md unstaged)" "   M  README.md"
+}
+
+@test "file-watch --status: an intent-to-add file is listed as unstaged with its additions" {
+  printf 'a\nb\n' > planned.txt
+  git add --intent-to-add planned.txt
+
+  run_grove file-watch --status
+
+  assert_equal "$(display planned.txt unstaged)" "   A  planned.txt  ${ESC}[32m+2${ESC}[0m"
+  assert [ -z "$(row planned.txt staged)" ]
+}
+
+@test "file-watch --status: ignored files are not listed" {
+  printf 'ignored.log\n' > .gitignore
+  git add .gitignore && git commit --quiet -m "Ignore logs."
+  printf 'x\n' > ignored.log
+  printf 'x\n' > kept.txt
+
+  run_grove file-watch --status
+
+  assert [ -n "$(row kept.txt unstaged)" ]
+  refute_output --partial "ignored.log"
+}
+
 # --- Staged --------------------------------------------------------------------
 
 @test "file-watch --status: a staged new file is dimmed with a green count" {
@@ -223,6 +253,41 @@ display() {
   assert_equal "$(display first.txt staged)" "  ${ESC}[90mA ${ESC}[0m  first.txt  ${ESC}[32m+1${ESC}[0m"
 }
 
+@test "file-watch --status: a staged empty file has no counts" {
+  : > empty.txt
+  git add empty.txt
+
+  run_grove file-watch --status
+
+  assert_equal "$(display empty.txt staged | strip_ansi)" "  A   empty.txt"
+}
+
+@test "file-watch --status: a file removed from the index but kept on disk is staged as deleted and untracked" {
+  git rm --quiet --cached README.md
+
+  run_grove file-watch --status
+
+  assert_equal "$(display README.md staged)" "  ${ESC}[90mD ${ESC}[0m  README.md  ${ESC}[31m-1${ESC}[0m"
+  assert_equal "$(display README.md unstaged)" "  ??  README.md"
+}
+
+@test "file-watch --status: pads names across both sections so the counts line up" {
+  printf 'a\n' > a.txt
+  printf 'a\n' > staged-with-a-long-name.txt
+  git add . && git commit --quiet -m "Add files."
+  printf 'b\n' >> a.txt
+  printf 'b\n' >> staged-with-a-long-name.txt
+  git add staged-with-a-long-name.txt
+
+  run_grove file-watch --status
+
+  local staged_column unstaged_column
+  unstaged_column=$(display a.txt unstaged | strip_ansi | awk '{print index($0, "+1")}')
+  staged_column=$(display staged-with-a-long-name.txt staged | strip_ansi | awk '{print index($0, "+1")}')
+  assert_equal "${unstaged_column}" "${staged_column}"
+  assert [ "${unstaged_column}" -gt 0 ]
+}
+
 # --- Both staged and unstaged ----------------------------------------------------
 
 @test "file-watch --status: a file with staged and unstaged changes appears in both sections" {
@@ -245,6 +310,28 @@ display() {
 
   assert_equal "$(display README.md unstaged)" "  MM  README.md  ${ESC}[32m+1${ESC}[0m"
   assert_equal "$(display README.md staged)" "  ${ESC}[90mMM${ESC}[0m  README.md  ${ESC}[32m+1${ESC}[0m"
+}
+
+# --- Conflicts and Git configuration ---------------------------------------------
+
+# Merge two branches that change the same line, which leaves README.md unmerged.
+make_conflict() {
+  git checkout --quiet -b other
+  printf 'other\n' > README.md
+  git commit --quiet --all -m "Change on other."
+  git checkout --quiet main
+  printf 'main\n' > README.md
+  git commit --quiet --all -m "Change on main."
+  git merge other > /dev/null 2>&1 || true
+}
+
+@test "file-watch --status: an unmerged file is listed as unstaged" {
+  make_conflict
+
+  run_grove file-watch --status
+
+  assert [ -n "$(row README.md unstaged)" ]
+  assert_equal "$(display README.md unstaged | strip_ansi | cut -c1-6)" "  UU  "
 }
 
 # --- Awkward filenames -----------------------------------------------------------
@@ -303,6 +390,25 @@ display() {
   assert [ -n "$(row unstaged unstaged)" ]
   assert [ -n "$(row staged unstaged)" ]
   assert [ -n "$(row status unstaged)" ]
+}
+
+@test "file-watch --status: preserves names that start with a dash" {
+  printf 'x\n' > -dash.txt
+
+  run_grove file-watch --status
+
+  assert_equal "$(row -dash.txt unstaged | cut -f2)" "-dash.txt"
+}
+
+@test "file-watch --status: shows counts for names with glob and regex characters" {
+  local -r name='a+b (1) [x] *.txt'
+  printf 'one\n' > "${name}"
+  git add . && git commit --quiet -m "Add awkward name."
+  printf 'two\n' >> "${name}"
+
+  run_grove file-watch --status
+
+  assert_equal "$(display "${name}" unstaged | strip_ansi)" "   M  ${name}  +1"
 }
 
 # --- Outside a repository / subdirectories --------------------------------------
@@ -399,4 +505,183 @@ run_watch() {
   run_watch 2
 
   assert_equal "$(fzf_call_count)" 2
+}
+
+# --- Key bindings ----------------------------------------------------------------
+
+# The bindings are shell commands that fzf runs with {2} (the filename) and {3}
+# (the section) replaced by quoted values. These helpers carry out the bindings
+# the same way, after run_watch has recorded them.
+
+# The names of the staged files, one per line and never quoted.
+staged_names() {
+  git diff --cached --name-only -z | tr '\0' '\n'
+}
+
+# Press a key that acts on the selected row, such as Ctrl-a or Ctrl-u.
+press_key() {
+  local -r key="$1"
+  local -r file_name="$2"
+
+  run_fzf_action "$(fzf_binding "${key}")" "${file_name}" "unstaged"
+}
+
+# Press Enter on a row. The popup it opens runs the real grove, and the diff it
+# shows ends up in $output.
+press_enter() {
+  local -r file_name="$1"
+  local -r section="${2:-unstaged}"
+
+  mkdir -p "${TEST_TMP}/bin"
+  ln -sf "${GROVE_BIN}" "${TEST_TMP}/bin/grove"
+
+  PATH="${TEST_TMP}/bin:${PATH}" run_fzf_action "$(fzf_binding enter)" "${file_name}" "${section}"
+}
+
+@test "file-watch: Ctrl-a stages the selected file" {
+  printf 'new\n' > added.txt
+  run_watch 1
+
+  press_key ctrl-a added.txt
+
+  assert_success
+  assert_equal "$(staged_names)" "added.txt"
+}
+
+@test "file-watch: Ctrl-a stages a file whose name has spaces and quotes" {
+  local -r name="it's a \"quoted\" name.txt"
+  printf 'new\n' > "${name}"
+  run_watch 1
+
+  press_key ctrl-a "${name}"
+
+  assert_success
+  assert_equal "$(staged_names)" "${name}"
+}
+
+@test "file-watch: Ctrl-a stages a deletion" {
+  rm README.md
+  run_watch 1
+
+  press_key ctrl-a README.md
+
+  assert_success
+  assert_equal "$(git status --short)" "D  README.md"
+}
+
+@test "file-watch: Ctrl-u unstages the selected file" {
+  printf 'changed\n' > README.md
+  git add README.md
+  run_watch 1
+
+  press_key ctrl-u README.md
+
+  assert_success
+  assert_equal "$(staged_names)" ""
+  assert_equal "$(git status --short)" " M README.md"
+}
+
+@test "file-watch: Ctrl-u unstages a file whose name has spaces and quotes" {
+  local -r name="it's a \"quoted\" name.txt"
+  printf 'new\n' > "${name}"
+  git add -- "${name}"
+  run_watch 1
+
+  press_key ctrl-u "${name}"
+
+  assert_success
+  assert_equal "$(staged_names)" ""
+}
+
+@test "file-watch: Ctrl-u unstages a file in a repository with no commits" {
+  local -r fresh="${TEST_TMP}/fresh"
+  git init --quiet "${fresh}"
+  cd "${fresh}"
+  printf 'x\n' > first.txt
+  git add first.txt
+  run_watch 1
+
+  press_key ctrl-u first.txt
+
+  assert_success
+  assert_equal "$(git status --short)" "?? first.txt"
+}
+
+@test "file-watch: Enter on a file opens a popup in the current directory that shows its diff" {
+  printf 'content\n' > new.txt
+  run_watch 1
+
+  press_enter new.txt
+
+  assert_success
+  assert_output --partial "new.txt"
+  assert_tmux_called "display-popup -d ${REPO} -w 80% -h 80% -E"
+}
+
+# Commit a ten-line file, stage a change to the first line and make a further,
+# unstaged change to the last line. The two diffs share no lines, not even as
+# context. The changed lines start with a digit because git shows the closest
+# line that starts with a letter in the header of a hunk.
+make_partially_staged_file() {
+  printf '1-alpha\n2\n3\n4\n5\n6\n7\n8\n9\n0-omega\n' > data.txt
+  git add data.txt && git commit --quiet -m "Add data."
+  printf '1-ALPHA\n2\n3\n4\n5\n6\n7\n8\n9\n0-omega\n' > data.txt
+  git add data.txt
+  printf '1-ALPHA\n2\n3\n4\n5\n6\n7\n8\n9\n0-OMEGA\n' > data.txt
+}
+
+@test "file-watch: Enter on an unstaged row shows only the unstaged changes" {
+  make_partially_staged_file
+  run_watch 1
+
+  press_enter data.txt unstaged
+
+  assert_output --partial "OMEGA"
+  refute_output --partial "ALPHA"
+}
+
+@test "file-watch: Enter on a staged row shows only the staged changes" {
+  make_partially_staged_file
+  run_watch 1
+
+  press_enter data.txt staged
+
+  assert_output --partial "ALPHA"
+  refute_output --partial "OMEGA"
+}
+
+@test "file-watch: Enter on a header row opens nothing" {
+  run_watch 1
+
+  press_enter ""
+
+  assert_output ""
+  refute_tmux_called "display-popup"
+}
+
+@test "file-watch: Enter on a file whose name has spaces and a quote shows its diff" {
+  printf 'content\n' > "it's got spaces.txt"
+  run_watch 1
+
+  press_enter "it's got spaces.txt"
+
+  assert_output --partial "content"
+}
+
+@test "file-watch: Enter on a file whose name has shell punctuation shows its diff" {
+  printf 'content\n' > 'a&b;c.txt'
+  run_watch 1
+
+  press_enter 'a&b;c.txt'
+
+  assert_output --partial "content"
+}
+
+@test "file-watch: Enter on a file whose name starts with a dash shows its diff" {
+  printf 'content\n' > -dash.txt
+  run_watch 1
+
+  press_enter -dash.txt
+
+  assert_output --partial "content"
 }

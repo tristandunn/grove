@@ -179,6 +179,29 @@ select_entry() {
   assert_equal "$(printf '%s\n' "${lines[0]}" | entry_column 3)" "${custom}"
 }
 
+@test "switch --list: inside a project lists a locked worktree" {
+  local worktree
+  worktree=$(make_worktree "${REPO}" grove-locked)
+  git -C "${REPO}" worktree lock "${worktree}"
+  cd "${REPO}"
+
+  run_grove switch --list
+
+  assert_equal "${#lines[@]}" 1
+  assert_equal "$(printf '%s\n' "${lines[0]}" | entry_name)" "locked"
+}
+
+@test "switch --list: inside a project strips a slash prefix from nested worktrees" {
+  git -C "${REPO}" worktree add --quiet "${GROVE_WORKTREES}/feat/thing" -b feat/thing
+  cd "${REPO}"
+
+  GROVE_PREFIX="feat/" run_grove switch --list
+
+  assert_equal "${#lines[@]}" 1
+  assert_equal "$(printf '%s\n' "${lines[0]}" | entry_name)" "thing"
+  assert_equal "$(printf '%s\n' "${lines[0]}" | entry_column 3)" "${GROVE_WORKTREES}/feat/thing"
+}
+
 @test "switch --list: inside a project skips stale entries whose directory is gone" {
   local gone
   gone=$(make_worktree "${REPO}" grove-gone)
@@ -314,6 +337,20 @@ select_entry() {
   run_grove switch --list
 
   assert_equal "${#lines[@]}" 3
+}
+
+@test "switch --list: outside a repository keeps project names and paths with spaces intact" {
+  local project worktree
+  project=$(make_repo "my project")
+  worktree=$(make_worktree "${project}" grove-a "${GROVE_WORKTREES}/with space")
+  cd "${TEST_TMP}"
+
+  run_grove switch --list
+
+  assert_equal "${#lines[@]}" 2
+  assert_equal "${lines[0]}" $'\033[1;2mmy project\033[0m'
+  assert_equal "$(printf '%s\n' "${lines[1]}" | entry_column 2)" "my project"
+  assert_equal "$(printf '%s\n' "${lines[1]}" | entry_column 3)" "${worktree}"
 }
 
 @test "switch --list: errors when the worktrees directory is missing outside a repository" {
@@ -772,6 +809,36 @@ select_entry() {
   run_grove switch
 
   refute_tmux_called "attach-session"
+}
+
+@test "switch: outside tmux, adds a window to an existing session and attaches to it" {
+  local worktree
+  worktree=$(make_worktree "${REPO}" grove-a)
+  cd "${REPO}"
+  select_entry a
+  tmux_fixture_session
+
+  run_grove switch
+
+  assert_success
+  assert_tmux_called "new-window"
+  assert_tmux_called "-n grove-a -c ${worktree} -P"
+  assert_tmux_called "attach-session"
+  refute_tmux_called "new-session"
+}
+
+@test "switch: reuses the session with exactly the project's name" {
+  make_worktree "${REPO}" grove-a > /dev/null
+  cd "${REPO}"
+  select_entry a
+  tmux_add_session "project"
+  tmux_add_session "project-docs"
+
+  run_grove switch
+
+  assert_success
+  assert_tmux_called "new-window"
+  refute_tmux_called "new-session"
 }
 
 @test "switch: the session name comes from the project selected outside a repository" {

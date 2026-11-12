@@ -229,7 +229,22 @@ tmux_fixture_session() {
 # Describe a pane. Usage: tmux_add_pane <session> <window> <left> <top>
 # <active> <id> <path>
 tmux_add_pane() {
-  printf '%s %s %s %s %s %s %s\n' "$@" >> "${TMUX_STUB_DIR}/panes"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@" >> "${TMUX_STUB_DIR}/panes"
+}
+
+# Add a session that exists. Once any session is added, the stub resolves the
+# target of has-session like tmux does, so a name that only starts with the
+# target also matches.
+tmux_add_session() {
+  printf '%s\n' "$1" >> "${TMUX_STUB_DIR}/sessions"
+}
+
+# Print the text typed into a pane by send-keys, one line per call, exactly as
+# a shell in that pane would receive it. Usage: tmux_sent_keys <pane>
+tmux_sent_keys() {
+  if [[ -f "${TMUX_STUB_DIR}/keys.log" ]]; then
+    awk -F'\t' -v pane="$1" '$1 == pane { sub(/^[^\t]*\t/, ""); print }' "${TMUX_STUB_DIR}/keys.log"
+  fi
 }
 
 # Fail unless some tmux call contains the fragment.
@@ -305,6 +320,81 @@ assert_fzf_arg() {
   if ! fzf_argv | grep -Fxq -- "${expected}"; then
     fail "$(printf 'expected fzf argument: %s\nfzf arguments:\n%s' "${expected}" "$(fzf_argv)")"
   fi
+}
+
+# Print the action bound to a key in the recorded fzf arguments, without the
+# "<key>:" in front of it. Usage: fzf_binding <key>
+fzf_binding() {
+  local -r key="$1"
+
+  local line
+  while IFS= read -r line; do
+    if [[ "${line}" == "${key}:"* ]]; then
+      printf '%s\n' "${line#"${key}:"}"
+      return 0
+    fi
+  done < <(fzf_argv)
+
+  fail "fzf received no binding for ${key}"
+}
+
+# Quote a value the way fzf quotes the {n} placeholders of a binding: as one
+# shell word wrapped in single quotes.
+fzf_quote() {
+  local -r value="$1"
+
+  printf "'%s'" "${value//\'/\'\\\'\'}"
+}
+
+# Replace the {2} and {3} placeholders in the command of a binding the way fzf
+# does and print the result. Usage: fzf_expand <command> <field-2> [field-3]
+fzf_expand() {
+  local expanded="$1"
+
+  local field_three field_two
+  field_two=$(fzf_quote "$2")
+  field_three=$(fzf_quote "${3:-}")
+
+  expanded="${expanded//\{2\}/"${field_two}"}"
+  expanded="${expanded//\{3\}/"${field_three}"}"
+
+  printf '%s\n' "${expanded}"
+}
+
+# Carry out an fzf action for a row the way fzf does, and leave the result of the
+# last command in $output and $status. A "transform:" action runs a shell command
+# whose output is the next action. An "execute(...)" or "execute-silent(...)"
+# action runs a shell command, and anything chained after it, like
+# "+reload(...)", is left alone. The placeholders {2} and {3} are replaced by the
+# quoted field values in every command that is run, as fzf does.
+# Usage: run_fzf_action <action> <field-2> [field-3]
+run_fzf_action() {
+  local action="$1"
+  local -r field_two="$2"
+  local -r field_three="${3:-}"
+
+  local command
+  case "${action}" in
+    transform:*)
+      command=$(fzf_expand "${action#transform:}" "${field_two}" "${field_three}")
+      run bash -c "${command}"
+
+      # A transform that prints nothing, like on a header row, ends here.
+      if [[ -n "${output}" ]]; then
+        run_fzf_action "${output}" "${field_two}" "${field_three}"
+      fi
+      ;;
+    execute\(*|execute-silent\(*)
+      command="${action%%+reload(*}"
+      command="${command#*\(}"
+      command="${command%)}"
+      command=$(fzf_expand "${command}" "${field_two}" "${field_three}")
+      run bash -c "${command}"
+      ;;
+    *)
+      fail "cannot carry out the fzf action: ${action}"
+      ;;
+  esac
 }
 
 # --- Switcher entries ------------------------------------------------------
