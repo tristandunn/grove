@@ -567,7 +567,9 @@ cmd_rename() {
       echo "Usage: grove rename --path <worktree-path> <new-name>" >&2
       exit 1
     fi
-    current_worktree="$2"
+    # Resolve the path to the worktree's root, so the main worktree check below
+    # cannot be fooled by a trailing slash or a symlink.
+    current_worktree=$(git -C "$2" rev-parse --show-toplevel)
     shift 2
     new_name="$*"
   else
@@ -628,8 +630,20 @@ cmd_rename() {
     error "Path already exists: ${new_worktree_path}"
   fi
 
-  git -C "${current_worktree}" branch -m "${old_branch}" "${new_branch}"
+  if [[ "${old_branch}" == "HEAD" ]]; then
+    error "Cannot rename a worktree with a detached HEAD."
+  fi
+
+  if git -C "${current_worktree}" show-ref --verify --quiet "refs/heads/${new_branch}"; then
+    error "Branch already exists: ${new_branch}"
+  fi
+
+  # Move the directory before renaming the branch, so a failed move, such as for
+  # a locked worktree, leaves the branch alone. A prefix with a slash may need a
+  # parent directory that does not exist yet.
+  mkdir -p "$(dirname "${new_worktree_path}")"
   git -C "${current_worktree}" worktree move "${current_worktree}" "${new_worktree_path}"
+  git -C "${new_worktree_path}" branch -m "${old_branch}" "${new_branch}"
 
   # Rename the tmux window if one is open for this worktree.
   if [[ -n "${TMUX:-}" ]]; then

@@ -265,6 +265,43 @@ setup() {
   assert [ ! -e "${GROVE_WORKTREES}/grove-thing" ]
 }
 
+@test "rename: a locked worktree is left untouched" {
+  git -C "${REPO}" worktree lock "${WORKTREE}"
+
+  run_grove rename thing
+
+  assert_failure
+  assert [ -d "${WORKTREE}" ]
+  assert branch_exists "${REPO}" "grove-old"
+  refute branch_exists "${REPO}" "grove-thing"
+  assert_equal "$(git -C "${WORKTREE}" rev-parse --abbrev-ref HEAD)" "grove-old"
+}
+
+@test "rename: a prefix that needs a new parent directory keeps the branch and directory in step" {
+
+  GROVE_PREFIX="feat/" run_grove rename thing
+
+  # Either the parent directory is created and everything moves, or nothing does.
+  if [[ "${status}" -eq 0 ]]; then
+    assert [ -d "${GROVE_WORKTREES}/feat/thing" ]
+    assert branch_exists "${REPO}" "feat/thing"
+    refute branch_exists "${REPO}" "grove-old"
+  else
+    assert [ -d "${WORKTREE}" ]
+    assert branch_exists "${REPO}" "grove-old"
+    refute branch_exists "${REPO}" "feat/thing"
+  fi
+}
+
+@test "rename: --path refuses the main worktree when given with a trailing slash" {
+
+  run_grove rename --path "${REPO}/" thing
+
+  assert_failure
+  assert branch_exists "${REPO}" "main"
+  refute branch_exists "${REPO}" "grove-thing"
+}
+
 # --- tmux --------------------------------------------------------------------
 
 @test "rename: outside tmux makes no tmux calls" {
