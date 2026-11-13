@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.7.0 - November 12th, 2026
 
 - Export `GROVE_WORKSPACE_NAME` into the shell pane.
 - Change the default `GROVE_PREFIX` from a slash to a dash.
