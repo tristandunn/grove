@@ -11,6 +11,11 @@
 
 set -euo pipefail
 
+# bash 5.2 replaces an unquoted "&" in the replacement of ${var//pattern/text}
+# with the match. bash 3.2 has no such option, so turn it off where it exists,
+# and the unquoted replacements behave the same in both.
+shopt -u patsub_replacement 2>/dev/null || true
+
 bats_require_minimum_version 1.5.0
 
 # The load.bash files of bats-support and bats-assert run dirname in a subshell
@@ -121,7 +126,36 @@ run_grove_timeout() {
   shift
 
   assert_sandboxed
-  run --separate-stderr timeout "${seconds}" "${GROVE_BIN}" "$@"
+  run --separate-stderr run_with_timeout "${seconds}" "${GROVE_BIN}" "$@"
+}
+
+# Run a command, and stop it with SIGTERM when it runs for longer than the
+# given number of seconds. This stands in for GNU timeout, which macOS does not
+# have. The command is checked every 50ms rather than raced by a background
+# watchdog, which leaves no process behind. /bin/sleep is used because the stub
+# on PATH returns at once. Usage: run_with_timeout <seconds> <command> [args...]
+run_with_timeout() {
+  local -r seconds="$1"
+  shift
+
+  "$@" &
+  local -r command_pid=$!
+
+  local -i ticks=0
+  while kill -0 "${command_pid}" 2>/dev/null; do
+    if (( ticks >= seconds * 20 )); then
+      kill -TERM "${command_pid}" 2>/dev/null || true
+      break
+    fi
+
+    /bin/sleep 0.05
+    ticks+=1
+  done
+
+  local command_status=0
+  wait "${command_pid}" || command_status=$?
+
+  return "${command_status}"
 }
 
 # Run a command inside a pseudo terminal so grove can read from /dev/tty. The
@@ -139,6 +173,14 @@ run_grove_with_tty() {
 
   local command_line
   command_line=$(printf '%q ' "${GROVE_BIN}" "$@")
+
+  # BSD script (macOS) needs a terminal on its standard input and takes the
+  # command differently, so use expect(1), which ships with macOS, there.
+  if [[ "$(uname)" == "Darwin" ]]; then
+    # The values go in through the environment, as expect -c takes no arguments.
+    TYPED="${typed}" COMMAND_LINE="${command_line}" run expect -c 'spawn bash -c $env(COMMAND_LINE); send -- "$env(TYPED)\r"; expect eof; catch wait result; exit [lindex $result 3]'
+    return
+  fi
 
   local -r input_fifo="${TEST_TMP}/tty-input"
   rm -f "${input_fifo}"
@@ -388,7 +430,11 @@ fzf_binding() {
 fzf_quote() {
   local -r value="$1"
 
-  printf "'%s'" "${value//\'/\'\\\'\'}"
+  # The replacement goes through a variable, because bash 3.2 (macOS) keeps the
+  # backslashes of a literal one inside double quotes.
+  local -r escaped_quote="'\\''"
+
+  printf "'%s'" "${value//\'/${escaped_quote}}"
 }
 
 # Replace the {2} and {3} placeholders in the command of a binding the way fzf
@@ -400,8 +446,8 @@ fzf_expand() {
   field_two=$(fzf_quote "$2")
   field_three=$(fzf_quote "${3:-}")
 
-  expanded="${expanded//\{2\}/"${field_two}"}"
-  expanded="${expanded//\{3\}/"${field_three}"}"
+  expanded="${expanded//\{2\}/${field_two}}"
+  expanded="${expanded//\{3\}/${field_three}}"
 
   printf '%s\n' "${expanded}"
 }

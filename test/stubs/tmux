@@ -33,6 +33,11 @@
 
 set -euo pipefail
 
+# bash 5.2 replaces an unquoted "&" in the replacement of ${var//pattern/text}
+# with the match. bash 3.2 has no such option, so turn it off where it exists,
+# and the unquoted replacements behave the same in both.
+shopt -u patsub_replacement 2>/dev/null || true
+
 readonly STATE_DIR="${TMUX_STUB_DIR:?TMUX_STUB_DIR must be set}"
 
 log_call() {
@@ -89,11 +94,11 @@ display_message() {
   fixture session_name session_name grove
   fixture window_index window_index 0
 
-  output="${output//"#{client_width}"/"${client_width}"}"
-  output="${output//"#{client_height}"/"${client_height}"}"
-  output="${output//"#{pane_current_path}"/"${pane_path}"}"
-  output="${output//"#{session_name}"/"${session_name}"}"
-  output="${output//"#{window_index}"/"${window_index}"}"
+  output="${output//"#{client_width}"/${client_width}}"
+  output="${output//"#{client_height}"/${client_height}}"
+  output="${output//"#{pane_current_path}"/${pane_path}}"
+  output="${output//"#{session_name}"/${session_name}}"
+  output="${output//"#{window_index}"/${window_index}}"
 
   printf '%s\n' "${output}"
 }
@@ -121,13 +126,13 @@ list_panes() {
     fi
 
     line="${format:-#\{pane_id\}}"
-    line="${line//"#{session_name}"/"${session}"}"
-    line="${line//"#{window_index}"/"${window}"}"
-    line="${line//"#{pane_left}"/"${left}"}"
-    line="${line//"#{pane_top}"/"${top}"}"
-    line="${line//"#{pane_active}"/"${active}"}"
-    line="${line//"#{pane_id}"/"${id}"}"
-    line="${line//"#{pane_current_path}"/"${path}"}"
+    line="${line//"#{session_name}"/${session}}"
+    line="${line//"#{window_index}"/${window}}"
+    line="${line//"#{pane_left}"/${left}}"
+    line="${line//"#{pane_top}"/${top}}"
+    line="${line//"#{pane_active}"/${active}}"
+    line="${line//"#{pane_id}"/${id}}"
+    line="${line//"#{pane_current_path}"/${path}}"
     result="${result}${line}"$'\n'
   done < "${STATE_DIR}/panes"
 

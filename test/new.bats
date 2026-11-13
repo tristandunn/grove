@@ -286,7 +286,7 @@ setup() {
   run_grove new twice
 
   assert_failure
-  assert_equal "$(git -C "${REPO}" worktree list | wc -l)" "2"
+  assert_equal "$(git -C "${REPO}" worktree list | wc -l | tr -d " ")" "2"
 }
 
 @test "new: a collision inside tmux is not shown as a tmux message" {
